@@ -4,7 +4,9 @@ Instructions for Claude Code when working in this repository.
 
 ## Project context
 
-CraftIT is a browser game about running an IT company. Read [README.md](README.md), [Concept.md](Concept.md), and [Technical.md](Technical.md) first. The current state and open points are in [agent.md](agent.md). The clickable mockup in [mockup/craftit-mockup.html](mockup/craftit-mockup.html) is the visual and functional reference.
+CraftIT is a browser game about running an IT company. Read [README.md](README.md), [Concept.md](Concept.md), and [Technical.md](Technical.md) first. The current state and open points are in [agent.md](agent.md).
+
+**Continuing work:** before doing anything else, read the section "Work in progress" in [agent.md](agent.md). It lists what is done and the exact next steps. Keep that section up to date while you work, so another session can pick up if this one ends. The game's source is `public/` and `server/`; the clickable mockup in [mockup/craftit-mockup.html](mockup/craftit-mockup.html) is only the original reference. Run `npm test` (Playwright) before reporting success.
 
 ## Working rules
 

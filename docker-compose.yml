@@ -1,0 +1,17 @@
+services:
+  craftit:
+    build: .
+    image: craftit:1.0.0
+    container_name: craftit
+    restart: unless-stopped
+    ports:
+      - "9150:9150"
+    environment:
+      PORT: "9150"
+      DATA_DIR: /app/data
+      # Optional local AI endpoint (OpenAI-compatible), e.g. http://ollama:11434
+      AI_URL: ${AI_URL:-}
+      # Set to 1 when the game is served over HTTPS (reverse proxy)
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+    volumes:
+      - ./data:/app/data

@@ -1,0 +1,22 @@
+{
+  "name": "craftit",
+  "version": "1.0.0",
+  "description": "CraftIT: a browser game about running an IT company",
+  "private": true,
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node --disable-warning=ExperimentalWarning server/index.js",
+    "dev": "node --disable-warning=ExperimentalWarning --watch server/index.js",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed"
+  },
+  "engines": {
+    "node": ">=22.13"
+  },
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}

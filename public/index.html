@@ -1,0 +1,1007 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>CraftIT</title>
+<meta name="description" content="CraftIT: ein Browserspiel über eine IT-Firma.">
+<link rel="icon" href="data:,">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body class="lt no-save" data-route="login">
+
+<div class="app">
+
+  <!-- Seitenleiste -->
+  <aside class="side" aria-label="Hauptnavigation">
+    <div class="brand"><span class="mark">C</span>CraftIT</div>
+    <nav class="nav-g" aria-label="Betrieb" data-game>
+      <div class="grp">Betrieb</div>
+      <a href="#uebersicht" data-nav="uebersicht">Übersicht</a>
+      <a href="#tickets" data-nav="tickets">Tickets <span class="cnt" id="navTickets">3</span></a>
+      <a href="#serverraum" data-nav="serverraum">Serverraum</a>
+      <a href="#personal" data-nav="personal">Personal</a>
+      <a href="#finanzen" data-nav="finanzen">Finanzen</a>
+      <a href="#verzeichnis" data-nav="verzeichnis">Active Directory</a>
+      <a href="#zugriff" data-nav="zugriff">Zugriff</a>
+      <a href="#dienste" data-nav="dienste">Dienste</a>
+      <a href="#werkstatt" data-nav="werkstatt">Werkstatt</a>
+      <a href="#rechner" data-nav="rechner">Arbeitsrechner</a>
+      <a href="#berichte" data-nav="berichte">Berichte</a>
+    </nav>
+    <nav class="nav-g" aria-label="ITSM" data-game>
+      <div class="grp">ITSM</div>
+      <a href="#katalog" data-nav="katalog">Service-Katalog</a>
+      <a href="#changes" data-nav="changes">Changes <span class="cnt">2</span></a>
+      <a href="#cmdb" data-nav="cmdb">CMDB</a>
+      <a href="#probleme" data-nav="probleme">Probleme</a>
+      <a href="#wissen" data-nav="wissen">Wissen</a>
+      <a href="#postmortem" data-nav="postmortem">Post-Mortems</a>
+      <a href="#routinen" data-nav="routinen">Assets und Routinen</a>
+    </nav>
+    <nav class="nav-g" aria-label="Spiel">
+      <div class="grp">Spiel</div>
+      <a href="#saves" data-nav="saves">Speicherstände</a>
+      <a href="#neues-spiel" data-nav="neues-spiel">Neues Spiel</a>
+      <a href="#einstellungen" data-nav="einstellungen">Einstellungen</a>
+      <a href="#support" data-nav="support">Hilfe und Support <span class="cnt" id="navSupportCnt" hidden>0</span></a>
+      <a href="#changelog" data-nav="changelog">Changelog</a>
+    </nav>
+    <nav class="nav-g" aria-label="Server" id="navServer" hidden>
+      <div class="grp">Server</div>
+      <a href="#admin" data-nav="admin">Server-Admin</a>
+    </nav>
+    <div class="side-foot">
+      <div class="seg" role="group" aria-label="Darstellung" data-theme-group>
+        <button type="button" data-theme-set="light">Hell</button>
+        <button type="button" data-theme-set="dark">Dunkel</button>
+        <button type="button" data-theme-set="system">System</button>
+      </div>
+      <button class="btn btn-g" type="button" data-act="logout" style="justify-content:flex-start"><span class="js-userdisplay">—</span> · Abmelden</button>
+    </div>
+  </aside>
+
+  <div style="min-width:0">
+    <!-- Kopfzeile -->
+    <header class="top">
+      <div class="crumbs" id="crumbs"><span>CraftIT</span></div>
+      <div class="top-r">
+        <button type="button" class="tag t-mut save-status" id="saveStatus" hidden>Nicht gespeichert</button>
+        <span class="clock" id="clock" data-game>Tag <b>42</b> · <b>14:20</b></span>
+        <button class="ib" id="pauseBtn" type="button" aria-pressed="false" data-game>Pause</button>
+        <div class="pop-w" data-game>
+          <button class="ib" id="bellBtn" type="button" aria-haspopup="true" aria-expanded="false">Mitteilungen <span class="dot-n" id="bellCount">3</span></button>
+          <div class="pop" id="bellPop" hidden role="menu">
+            <div style="padding:6px 12px 8px;font-weight:700">Mitteilungen</div>
+            <button class="item" type="button" data-go="tickets"><span>Major Incident: Netzwerk-Ausfall Lager<br><span class="sub">T-1033 · SLA läuft in 28 min</span></span><span class="tag t-bad">Kritisch</span></button>
+            <button class="item" type="button" data-go="changes"><span>CHG-206 wartet auf das CAB<br><span class="sub">Notfall-Change · Hohes Risiko</span></span><span class="tag t-warn">CAB</span></button>
+            <button class="item" type="button" data-go="personal"><span>Ole Brandt ist krank bis Donnerstag<br><span class="sub">Vertretung planen</span></span><span class="tag t-mut">Personal</span></button>
+          </div>
+        </div>
+        <div class="pop-w">
+          <button class="ib" id="userBtn" type="button" aria-haspopup="true" aria-expanded="false"><span class="js-userdisplay">—</span> ▾</button>
+          <div class="pop" id="userPop" hidden role="menu">
+            <div style="padding:8px 12px"><div style="font-weight:700" class="js-userdisplay">—</div><div class="sub muted" style="font-size:13px" id="userRole"></div></div>
+            <hr>
+            <button class="item" type="button" data-go="saves">Speicherstände</button>
+            <button class="item" type="button" data-go="einstellungen">Einstellungen</button>
+            <button class="item" type="button" data-act="profil">Profil bearbeiten</button>
+            <button class="item" type="button" data-act="pwchange">Kennwort ändern</button>
+            <button class="item" type="button" data-go="support">Hilfe und Support</button>
+            <hr>
+            <button class="item" type="button" data-act="logout">Abmelden</button>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <main id="main">
+
+      <!-- ANMELDUNG -->
+      <section class="scr-wrap" data-screen="login" hidden>
+        <div class="login-wrap">
+          <div class="login-side">
+            <div class="brand"><span class="mark">C</span>CraftIT</div>
+            <div>
+              <p class="big">Dein IT-Dienstleister.<br>Vom ersten Ticket bis zum Major Incident.</p>
+              <p class="muted" style="margin-top:16px;max-width:42ch">Eine Firma aufbauen, Kunden betreuen, Server und Active Directory im Griff behalten. Mit echter ITIL-4-Praxis.</p>
+            </div>
+            <p class="muted" style="font-size:13px">Konto erforderlich. Einzel- und Koop-Spiel nutzen dasselbe Konto. Alles läuft auf diesem Server, ohne Dienste von außen.</p>
+          </div>
+          <div class="login-form">
+            <form class="login-box" id="loginForm" novalidate>
+              <div>
+                <h2 style="font-size:26px" id="authTitle">Anmelden</h2>
+                <p class="muted" style="margin-top:6px" id="authLead">Mit deinem CraftIT-Konto weitermachen.</p>
+              </div>
+              <div class="note bad" id="authErr" role="alert" hidden></div>
+              <div class="field" id="fServer" hidden>
+                <label for="authServer">Name des Servers</label>
+                <input class="inp" id="authServer" maxlength="40" placeholder="CraftIT" autocomplete="off">
+                <div class="hint">Erscheint in der Server-Verwaltung. Später änderbar.</div>
+              </div>
+              <div class="field">
+                <label for="loginMail">Benutzername</label>
+                <input class="inp" id="loginMail" name="username" autocomplete="username" autocapitalize="none" spellcheck="false">
+                <div class="err" id="loginMailErr"></div>
+              </div>
+              <div class="field" id="fEmail" hidden>
+                <label for="authEmail">E-Mail (optional)</label>
+                <input class="inp" id="authEmail" type="email" autocomplete="email">
+              </div>
+              <div class="field">
+                <label for="loginPw">Kennwort</label>
+                <input class="inp" id="loginPw" type="password" name="password" autocomplete="current-password">
+                <div class="err" id="loginPwErr"></div>
+              </div>
+              <div class="field" id="fPw2" hidden>
+                <label for="authPw2">Kennwort wiederholen</label>
+                <input class="inp" id="authPw2" type="password" autocomplete="new-password">
+                <div class="err" id="authPw2Err"></div>
+              </div>
+              <div class="field" id="fInvite" hidden>
+                <label for="authInvite">Einladungscode</label>
+                <input class="inp mono" id="authInvite" autocomplete="off" autocapitalize="characters" spellcheck="false">
+                <div class="err" id="authInviteErr"></div>
+              </div>
+              <div id="authForgot" style="text-align:right"><a href="#" class="crumb-link" data-act="pwreset" style="font-size:14px">Kennwort vergessen?</a></div>
+              <button class="btn" type="submit" id="authSubmit" style="height:46px">Anmelden</button>
+              <p class="hint" style="text-align:center" id="authSwitch"></p>
+            </form>
+          </div>
+          <div class="seg login-theme" role="group" aria-label="Darstellung" data-theme-group>
+            <button type="button" data-theme-set="light">Hell</button>
+            <button type="button" data-theme-set="dark">Dunkel</button>
+            <button type="button" data-theme-set="system">System</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- SPEICHERSTÄNDE -->
+      <section class="scr" data-screen="saves" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Spiel · Konto <span class="js-user">—</span></div><h1>Speicherstände</h1></div>
+          <div class="acts"><span class="tag t-mut" id="saveCount" style="height:36px;padding:0 14px;font-size:13px">0 von 5 belegt</span><label class="btn btn-s" for="importFile" style="cursor:pointer">Importieren</label><input type="file" id="importFile" accept=".json,application/json" hidden><button class="btn" type="button" data-go="neues-spiel">Neues Spiel</button></div>
+        </div>
+        <div class="grid g3" id="saveGrid"></div>
+        <div class="note info">Ein Speicherstand ist eine Firma. Das Spiel speichert alle 30 Sekunden, beim Seitenwechsel und wenn du den Tab verlässt. Exportieren lädt eine Datei herunter, Importieren legt daraus einen neuen Stand an.</div>
+      </section>
+
+      <!-- NEUES SPIEL -->
+      <section class="scr" data-screen="neues-spiel" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Spiel · Neuer Speicherstand</div><h1>Neues Spiel</h1></div>
+          <button class="btn btn-s" type="button" data-go="saves">Abbrechen</button>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;gap:26px">
+          <div class="steps" id="wizSteps" aria-label="Fortschritt"></div>
+          <div id="wizBody" style="display:flex;flex-direction:column;gap:18px"></div>
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;border-top:1px solid var(--line);padding-top:18px">
+            <button class="btn btn-s" type="button" id="wizBack">Zurück</button>
+            <button class="btn" type="button" id="wizNext">Weiter</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ÜBERSICHT -->
+      <section class="scr" data-screen="uebersicht" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Betrieb · <span class="js-company">Nordlicht IT Service</span></div><h1 id="greet">Guten Morgen.</h1></div>
+          <div class="acts"><button class="btn btn-s" type="button" data-act="shift" id="shiftBtn">Schicht beenden</button><button class="btn btn-s" type="button" data-go="tickets">Tickets öffnen</button><button class="btn" type="button" data-act="newticket">Neues Ticket</button></div>
+        </div>
+        <div class="grid g4">
+          <div class="card kpi"><div class="l">Kasse</div><div class="v">18.420 €</div><div class="s">Reichweite ca. 5 Monate</div></div>
+          <div class="card kpi"><div class="l">Offene Tickets</div><div class="v" id="kpiOpen">3</div><div class="s">1 Major Incident</div></div>
+          <div class="card kpi"><div class="l">SLA eingehalten</div><div class="v" style="color:var(--ok)">94 %</div><div class="s">letzte 7 Tage</div></div>
+          <div class="card kpi"><div class="l">Zufriedenheit</div><div class="v">4,2</div><div class="s">von 5 Sternen</div></div>
+        </div>
+        <div class="grid g2">
+          <div class="card">
+            <div class="card-h"><h2>Aktive Tickets</h2><button class="btn btn-g btn-sm" type="button" data-go="tickets">Alle ansehen</button></div>
+            <div class="list" id="homeTickets"></div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <div class="card-h"><h2>Heute</h2></div>
+              <div class="list">
+                <div class="li"><div class="main-t"><div style="font-weight:650">Change CHG-204 umsetzen</div><div class="sub muted" style="font-size:13px">Firewall-Regel, 16:00</div></div><span class="tag t-acc">Change</span></div>
+                <div class="li"><div class="main-t"><div style="font-weight:650">Server-Backup prüfen</div><div class="sub muted" style="font-size:13px">Letzte Sicherung 03:00</div></div><span class="tag t-ok">OK</span></div>
+                <div class="li"><div class="main-t"><div style="font-weight:650">Gehaltszahlungen</div><div class="sub muted" style="font-size:13px">Fällig am 1. des Monats</div></div><span class="tag t-mut">14.200 €</span></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h2>Team-Auslastung</h2><span class="muted" style="font-size:13px">4 Mitarbeitende</span></div>
+              <div class="list" style="gap:14px">
+                <div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Jonas Keller</span><span class="num">90 %</span></div><div class="bar" style="margin-top:6px"><i style="width:90%"></i></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Mira Stein</span><span class="num">71 %</span></div><div class="bar warn" style="margin-top:6px"><i style="width:71%"></i></div></div>
+                <div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Ole Brandt</span><span class="num">krank</span></div><div class="bar bad" style="margin-top:6px"><i style="width:100%"></i></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <div class="grid g3"><div class="card kpi"><div class="l">Dringend</div><div class="v" id="ovUrgent" style="color:var(--bad)">0</div><div class="s">Priorität Hoch oder Kritisch</div></div><div class="card kpi"><div class="l">Dienste im Grünen</div><div class="v" id="ovSvc">—</div><div class="s">ohne Warnung</div></div><div class="card"><div class="card-h"><h2>Letzte Schicht</h2></div><div id="lastShift"></div></div></div><div class="grid g2"><div class="card"><div class="card-h"><h2>Meilensteine</h2><span class="hint" id="msCount"></span></div><div class="bar" style="margin-bottom:14px"><i id="msBar" style="width:0%"></i></div><div class="list" id="msList"></div></div><div class="card"><div class="card-h"><h2>Szenarien</h2><span class="hint">Begrenzte Lagen mit Ziel</span></div><div class="list" id="scenList"></div></div></div>
+</section>
+
+      <!-- TICKETS -->
+      <section class="scr" data-screen="tickets" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Betrieb · Service Desk</div><h1>Tickets</h1></div>
+          <div class="acts"><button class="btn" type="button" data-act="newticket">Neues Ticket</button></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:center">
+          <div class="chips" id="ticketChips" role="group" aria-label="Filter">
+            <button class="chip" type="button" data-f="all" aria-pressed="true">Alle</button>
+            <button class="chip" type="button" data-f="open" aria-pressed="false">Offen</button>
+            <button class="chip" type="button" data-f="sla" aria-pressed="false">SLA kritisch</button>
+            <button class="chip" type="button" data-f="done" aria-pressed="false">Gelöst</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center"><select class="inp" id="ticketCat" style="width:200px;flex:none" aria-label="Kategorie"></select><input class="inp" style="width:260px;flex:none" id="ticketSearch" placeholder="Ticket, Kunde oder Person suchen" aria-label="Tickets suchen"></div>
+        </div>
+        <div class="tw">
+          <table>
+            <thead id="ticketHead"><tr><th><button class="sortbtn" type="button" data-sort="title">Ticket<span class="arr"></span></button></th><th>Anfragende Person</th><th><button class="sortbtn" type="button" data-sort="cat">Kategorie<span class="arr"></span></button></th><th><button class="sortbtn" type="button" data-sort="impact">Auswirkung<span class="arr"></span></button> / <button class="sortbtn" type="button" data-sort="urgency">Dringlichkeit<span class="arr"></span></button></th><th><button class="sortbtn" type="button" data-sort="prio">Priorität<span class="arr"></span></button></th><th><button class="sortbtn" type="button" data-sort="sla">SLA<span class="arr"></span></button></th><th><button class="sortbtn" type="button" data-sort="status">Status<span class="arr"></span></button></th><th>Zuständig</th><th><span class="sr">Aktion</span></th></tr></thead>
+            <tbody id="ticketRows"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="ticketEmpty" hidden>Keine Tickets für diesen Filter.</p>
+      </section>
+
+      <!-- TICKET-DETAIL -->
+      <section class="scr" data-screen="ticket" hidden>
+        <div class="ph">
+          <div>
+            <div class="eyebrow"><a href="#tickets" class="crumb-link">Tickets</a> · <span id="tkId">T-1031</span></div>
+            <h1 id="tkTitle" style="font-size:30px">Drucker im Empfang druckt nicht</h1>
+          </div>
+          <div class="acts">
+            <button class="btn btn-s" type="button" data-act="assign">Zuweisen</button>
+            <button class="btn btn-s" type="button" data-act="triage">Triage</button><button class="btn btn-s" type="button" data-act="note">Notiz</button><button class="btn btn-s" type="button" id="tkRequest" data-act="request">Rückfrage stellen</button><button class="btn btn-s" type="button" data-act="escalate">Eskalieren</button><button class="btn btn-s" type="button" id="tkReopen" data-act="reopen" hidden>Lösung zurücknehmen</button>
+            <button class="btn" type="button" data-act="resolve">Lösung dokumentieren</button>
+          </div>
+        </div>
+        <div class="grid g2">
+          <div class="stack">
+            <div class="card">
+              <div class="card-h"><h2>Verlauf</h2><span class="tag t-info" id="tkStatus">Offen</span></div>
+              <div class="thread" id="tkThread"></div>
+            </div>
+            <div class="card">
+              <div class="card-h"><h2>Remote-Sitzung</h2><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="tag t-mut" id="tkConn">Nicht verbunden</span><button class="btn btn-sm" type="button" id="tkRdp">RDP verbinden</button></div></div>
+              <div class="term" id="tkTerm" aria-label="Remote-Terminal">
+<span class="p">WinSec-OS 0.4 · Sitzung 2041</span>
+<span>PS C:\Empfang&gt; Get-Printer</span>
+<span class="w">Name            Status    Port</span>
+<span>HP-Empfang      <span class="e">Offline</span>    IP_10.0.4.21</span>
+<span>PS C:\Empfang&gt; Test-Connection 10.0.4.21</span>
+<span class="e">Zeitüberschreitung bei der Anfrage</span>
+<span class="p">PS C:\Empfang&gt; _</span>
+              </div>
+              <p class="hint" style="margin-top:12px">Befehle zeigen Fehler und Lösungen aus dem Spiel. Nichts wird echt ausgeführt.</p>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h2 style="margin-bottom:14px">Details</h2>
+              <dl class="kv" id="tkKv"></dl>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:14px">SLA</h2>
+              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Reaktion</span><span class="tag t-ok">eingehalten</span></div>
+              <div class="bar ok" style="margin:10px 0 18px"><i style="width:100%"></i></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Lösung</span><span id="tkSla" class="num">2 h 10 min</span></div>
+              <div class="bar warn" style="margin-top:10px"><i style="width:62%"></i></div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:12px">Verknüpft</h2>
+              <div class="list" style="gap:12px">
+                <div class="li" style="padding:0"><span>CI: HP-Empfang (Drucker)</span><span class="tag t-mut">CMDB</span></div>
+                <div class="li" style="padding:0"><span>Wissensartikel: Drucker-Treiber</span><span class="tag t-mut">Wissen</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      <div class="card" id="tkInv"><div class="card-h"><h2>Untersuchung</h2><span class="hint" id="tkInvCount">0 Schritte bisher</span></div><p class="hint" style="margin-bottom:14px">Jeder Schritt zeigt im Terminal, was passiert ist. Die Lösung braucht einen Befund.</p><div class="acts"><button class="btn btn-s btn-sm" type="button" data-inv="ping">Verbindung prüfen</button><button class="btn btn-s btn-sm" type="button" data-inv="logs">Ereignisprotokoll lesen</button><button class="btn btn-s btn-sm" type="button" data-inv="restart">Dienst neu starten</button><button class="btn btn-s btn-sm" type="button" data-inv="driver">Treiber neu installieren</button></div></div>
+<div class="card"><div class="card-h"><div><h2>Kundenkommunikation</h2><div class="hint" style="margin-top:4px">Klar schreiben, ohne Fachjargon. Der Kunde reagiert auf deine Worte.</div></div><span class="tag t-mut" id="tkAi">Vorlagen</span></div><div class="mood"><div class="mood-l"><span class="hint">Stimmung des Kunden</span><strong id="tkMoodTxt">zufrieden</strong></div><div class="mood-bar"><i id="tkMood"></i></div></div><form id="tkChatForm" class="chat-form" novalidate><textarea class="inp" id="tkChatIn" placeholder="z. B. Ich habe den Treiber neu installiert. Bitte testen Sie den Druck und sagen Sie mir Bescheid."></textarea><div class="err" id="tkChatErr"></div><div class="acts" style="justify-content:space-between;align-items:center;margin-top:10px"><span class="hint">Der Kunde antwortet nach kurzer Zeit.</span><button class="btn" type="submit">Senden</button></div></form></div>
+</section>
+
+      <!-- SERVICE-KATALOG -->
+      <section class="scr" data-screen="katalog" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">ITSM · Service-Katalog</div><h1>Services</h1></div>
+          <div class="acts"><button class="btn" type="button" data-act="newservice">Service anlegen</button></div>
+        </div>
+        <div class="grid g3">
+          <div class="card"><div class="card-h"><h3>Arbeitsplatz-Einrichtung</h3><span class="tag t-ok">Standard</span></div><p class="muted">Neues Gerät, Software und Konto für einen Mitarbeitenden.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>1 Tag</dd><dt>Preis</dt><dd>180 €</dd></div></div>
+          <div class="card"><div class="card-h"><h3>Störungsbehebung</h3><span class="tag t-info">Incident</span></div><p class="muted">Ausfälle melden, eingrenzen und wiederherstellen.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>4 h Reaktion</dd><dt>Preis</dt><dd>je Einsatz</dd></div></div>
+          <div class="card"><div class="card-h"><h3>Netzwerk-Wartung</h3><span class="tag t-warn">Change</span></div><p class="muted">Geplante Arbeiten an Router, Switch und WLAN.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>Normal-Change</dd><dt>Preis</dt><dd>Support-Vertrag</dd></div></div>
+          <div class="card"><div class="card-h"><h3>Passwort zurücksetzen</h3><span class="tag t-ok">Standard</span></div><p class="muted">Konto entsperren und neues Passwort setzen.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>1 h</dd><dt>Preis</dt><dd>25 €</dd></div></div>
+          <div class="card"><div class="card-h"><h3>Serverwartung</h3><span class="tag t-warn">Change</span></div><p class="muted">Updates, Backups und Speicherpflege auf dem Server.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>Wartungsfenster</dd><dt>Preis</dt><dd>Vertrag</dd></div></div>
+          <div class="card"><div class="card-h"><h3>Datenwiederherstellung</h3><span class="tag t-bad">Hoch</span></div><p class="muted">Dateien aus Backups zurückholen. Dringend bei Ransomware.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>2 h</dd><dt>Preis</dt><dd>420 €</dd></div></div>
+        </div>
+      </section>
+
+      <!-- CHANGES -->
+      <section class="scr" data-screen="changes" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">ITSM · Change Enablement</div><h1>Changes</h1></div>
+          <div class="acts"><button class="btn" type="button" data-act="newchange">Change beantragen</button></div>
+        </div>
+        <div class="grid g2">
+          <div class="tw">
+            <table>
+              <thead><tr><th>Change</th><th>Typ</th><th>Risiko</th><th>Status</th><th>CAB</th></tr></thead>
+              <tbody id="changeRows"></tbody>
+            </table>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h2 style="margin-bottom:12px">Change-Typen</h2>
+              <div class="list" style="gap:12px">
+                <div><span class="tag t-ok">Standard</span> <span class="muted" style="font-size:14px">Vorab genehmigt, wiederholbar, ohne CAB.</span></div>
+                <div><span class="tag t-info">Normal</span> <span class="muted" style="font-size:14px">Prüfung durch das CAB vor Umsetzung.</span></div>
+                <div><span class="tag t-bad">Emergency</span> <span class="muted" style="font-size:14px">Sofort, mit nachträglicher Prüfung.</span></div>
+              </div>
+            </div>
+            <div class="note warn">Ein Notfall-Change ohne Nachprüfung senkt den Prozess-Reifegrad.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CMDB -->
+      <section class="scr" data-screen="cmdb" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">ITSM · Configuration Management</div><h1>CMDB</h1></div>
+          <div class="acts"><button class="btn btn-s" type="button" data-act="impact">Auswirkung prüfen</button><button class="btn" type="button" data-act="newci">Konfigurationseinheit anlegen</button></div>
+        </div>
+        <div class="grid g2">
+          <div class="tw">
+            <table>
+              <thead><tr><th>Konfigurationseinheit</th><th>Typ</th><th>Kunde</th><th>Status</th></tr></thead>
+              <tbody>
+                <tr class="click" data-ci="HP-Empfang"><td>HP-Empfang</td><td>Drucker</td><td>Bäckerei Krumm</td><td><span class="tag t-bad">Offline</span></td></tr>
+                <tr class="click" data-ci="Router-Lager"><td>Router-Lager</td><td>Netzwerk</td><td>Logistik Weidner</td><td><span class="tag t-warn">Warnung</span></td></tr>
+                <tr class="click" data-ci="NAS-Büro"><td>NAS-Büro</td><td>Speicher</td><td>Steuerbüro Hahn</td><td><span class="tag t-ok">OK</span></td></tr>
+                <tr class="click" data-ci="Lizenz Office"><td>Lizenz Office 365</td><td>Lizenz</td><td>Steuerbüro Hahn</td><td><span class="tag t-mut">läuft ab in 30 Tagen</span></td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card" id="ciDetail"></div>
+        </div>
+      </section>
+
+      <!-- PROBLEME -->
+      <section class="scr" data-screen="probleme" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">ITSM · Problem Management</div><h1>Probleme</h1></div>
+          <div class="acts"><button class="btn" type="button" data-act="newproblem">Problem erfassen</button></div>
+        </div>
+        <div class="grid g2">
+          <div class="card">
+            <div class="card-h"><h2>Offene Probleme</h2><span class="tag t-warn">2 aktiv</span></div>
+            <div class="list">
+              <div class="li"><div class="main-t"><div style="font-weight:650">Drucker fallen bei Kunden regelmäßig aus</div><div class="sub muted" style="font-size:13px">4 verknüpfte Incidents · Ursache vermutet: Treiber</div></div><span class="tag t-warn">Untersuchung</span></div>
+              <div class="li"><div class="main-t"><div style="font-weight:650">WLAN bricht im Lager ab</div><div class="sub muted" style="font-size:13px">2 Incidents · Ursache: Firmware Router</div></div><span class="tag t-info">Workaround</span></div>
+              <div class="li"><div class="main-t"><div style="font-weight:650">Passwörter laufen zu oft ab</div><div class="sub muted" style="font-size:13px">7 Incidents · Richtlinie wird geprüft</div></div><span class="tag t-ok">Gelöst</span></div>
+            </div>
+          </div>
+          <div class="card">
+            <h2 style="margin-bottom:6px">Ursachenanalyse</h2>
+            <p class="muted" style="font-size:14px;margin-bottom:14px">Problem: Drucker fallen bei Kunden regelmäßig aus.</p>
+            <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:12px;font-size:14px">
+              <li><b>Warum fällt der Drucker aus?</b> Der Druckdienst stürzt ab.</li>
+              <li><b>Warum stürzt er ab?</b> Ein Treiber verträgt das letzte Update nicht.</li>
+              <li><b>Warum wurde das Update installiert?</b> Die Richtlinie aktualisiert Treiber automatisch.</li>
+              <li><b>Warum gibt es keine Prüfung?</b> Kein Testgerät im Lager.</li>
+            </ol>
+            <div class="note info" style="margin-top:16px">Vorschlag: Automatische Treiber-Updates pro Kunde über einen Change steuern.</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- WISSEN -->
+      <section class="scr" data-screen="wissen" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">ITSM · Wissensdatenbank</div><h1>Wissen</h1></div>
+          <div class="acts"><button class="btn" type="button" data-act="newarticle">Artikel schreiben</button></div>
+        </div>
+        <div class="grid g2">
+          <div class="card">
+            <div class="list">
+              <button class="li" type="button" data-kb="kb1" style="background:none;border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);padding:14px 0"><span class="main-t"><span style="font-weight:650;display:block">Drucker-Treiber sauber installieren</span><span class="sub muted" style="font-size:13px">Zuletzt geprüft vor 12 Tagen</span></span><span class="tag t-ok">Aktuell</span></button>
+              <button class="li" type="button" data-kb="kb2" style="background:none;border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);padding:14px 0"><span class="main-t"><span style="font-weight:650;display:block">WLAN-Firmware sicher aktualisieren</span><span class="sub muted" style="font-size:13px">Wartung nur im Change-Fenster</span></span><span class="tag t-warn">Prüfen</span></button>
+              <button class="li" type="button" data-kb="kb3" style="background:none;border:0;text-align:left;color:var(--ink);padding:14px 0"><span class="main-t"><span style="font-weight:650;display:block">Passwort zurücksetzen (Vorlage)</span><span class="sub muted" style="font-size:13px">Schritt für Schritt für den Empfang</span></span><span class="tag t-ok">Aktuell</span></button>
+            </div>
+          </div>
+          <div class="card" id="kbView"></div>
+        </div>
+      </section>
+<!-- SERVERRAUM -->
+<section class="scr" data-screen="serverraum" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Server · Serverräume</div><h1>Serverraum</h1></div>
+    <div class="acts"><button class="btn btn-s" type="button" data-act="backup">Backup jetzt</button><button class="btn btn-s" type="button" data-act="addcable">Kabel verlegen</button><button class="btn" type="button" data-act="addserver">Server einbauen</button></div>
+  </div>
+  <div class="grid g4">
+    <div class="card kpi"><div class="l">Server</div><div class="v" id="kpiServers">0</div><div class="s" id="kpiRacks">—</div></div>
+    <div class="card kpi"><div class="l">Kabel</div><div class="v" id="kpiCables">0</div><div class="s">Netz, Glasfaser, Strom, WAN</div></div>
+    <div class="card kpi"><div class="l">Störungen</div><div class="v" id="kpiFaults" style="color:var(--bad)">0</div><div class="s">Kabel und Geräte</div></div>
+    <div class="card kpi"><div class="l">Temperatur</div><div class="v">21 °C</div><div class="s">Ziel 18–24 °C · Rack A</div></div>
+  </div>
+  <div class="tabs" id="roomTabs" role="tablist" aria-label="Ansicht">
+    <button type="button" role="tab" data-rtab="racks" aria-selected="true">Racks</button>
+    <button type="button" role="tab" data-rtab="cabling" aria-selected="false">Verkabelung</button>
+    <button type="button" role="tab" data-rtab="servers" aria-selected="false">Server</button>
+  </div>
+
+  <div data-rpanel="racks">
+    <div class="chips" id="rackChips" role="group" aria-label="Rack wählen"></div>
+    <div class="grid g2" style="margin-top:20px">
+      <div class="card">
+        <div class="card-h"><div><h2 id="rackTitle">Rack</h2><div class="hint" id="rackMeta" style="margin-top:4px"></div></div></div>
+        <div class="rack-wrap"><div class="rack" id="rackView"></div></div>
+      </div>
+      <div class="stack">
+        <div class="card"><div class="card-h"><h2>Geräte in diesem Rack</h2></div><div class="list" id="rackDevices"></div></div>
+        <div class="note info">Klick auf ein Gerät zeigt Ports, Kabel und Status. Ein Server braucht freie Höheneinheiten im Rack.</div>
+      </div>
+    </div>
+  </div>
+
+  <div data-rpanel="cabling" hidden>
+    <div class="card">
+      <div class="card-h"><h2>Verkabelungsplan</h2><span class="hint">Klick auf ein Gerät oder Kabel hebt die Verbindungen hervor.</span></div>
+      <div class="legend" aria-hidden="true">
+        <span class="lg"><i class="lan"></i>LAN</span>
+        <span class="lg"><i class="lwl"></i>Glasfaser</span>
+        <span class="lg"><i class="strom"></i>Strom</span>
+        <span class="lg"><i class="wan"></i>WAN</span>
+      </div>
+      <div class="topo-wrap"><svg id="topo" role="img" aria-label="Verkabelungsplan aller Racks"></svg></div>
+    </div>
+    <div class="tw" style="margin-top:20px">
+      <table>
+        <thead><tr><th>Kabel</th><th>Von</th><th>Nach</th><th>Typ</th><th>Länge</th><th>Status</th><th><span class="sr">Aktion</span></th></tr></thead>
+        <tbody id="cableRows"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div data-rpanel="servers" hidden>
+    <div class="tw">
+      <table>
+        <thead><tr><th>Server</th><th>Rack</th><th>HE</th><th>Betriebssystem</th><th>Last</th><th>Status</th></tr></thead>
+        <tbody id="serverRows"></tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="scr" data-screen="personal" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Betrieb · Team</div><h1>Dein Team</h1></div>
+          <div class="acts"><button class="btn btn-s" type="button" data-act="applicants">Bewerber ansehen</button></div>
+        </div>
+        <div class="grid g3" id="staffGrid"></div>
+        <div class="card">
+          <div class="card-h"><h2>Bewerber</h2><span class="muted" style="font-size:13px" id="candCount">2 von 8 Kandidaten</span></div>
+          <div class="list" id="candList"></div>
+        </div>
+      <div class="card"><div class="card-h"><h2>Automatisierung</h2><button class="btn btn-s btn-sm" type="button" data-act="train">Schulung buchen</button></div><p class="hint" style="margin-bottom:6px">Routinen automatisieren spart Zeit. Fehlerhafte Automatisierung erzeugt einen Incident.</p><div id="autoList"></div></div>
+</section>
+
+      <!-- FINANZEN -->
+      <section class="scr" data-screen="finanzen" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Betrieb · <span class="js-company">Nordlicht IT Service</span></div><h1 id="cashTitle">18.420 € auf dem Konto.</h1></div>
+          <div class="acts"><button class="btn" type="button" data-act="invoice">Rechnung schreiben</button></div>
+        </div>
+        <div class="grid g4">
+          <div class="card kpi"><div class="l">Einnahmen (Monat)</div><div class="v" style="color:var(--ok)">24.900 €</div><div class="s">Support-Verträge 15.600 €</div></div>
+          <div class="card kpi"><div class="l">Kosten (Monat)</div><div class="v">19.760 €</div><div class="s">Gehälter 14.200 €</div></div>
+          <div class="card kpi"><div class="l">Kredit</div><div class="v" style="color:var(--bad)">−8.000 €</div><div class="s">Zins 4,5 % · Rate 310 €</div></div>
+          <div class="card kpi"><div class="l">Offene Rechnungen</div><div class="v" id="openInv">2.270 €</div><div class="s" id="openInvS">2 Rechnungen</div></div>
+        </div>
+        <div class="grid g2">
+          <div class="tw">
+            <table>
+              <thead><tr><th>Rechnung</th><th>Kunde</th><th>Betrag</th><th>Status</th></tr></thead>
+              <tbody id="invRows"></tbody>
+            </table>
+          </div>
+          <div class="card">
+            <h2 style="margin-bottom:4px">Preisfaktor pro Kundentyp</h2>
+            <p class="hint" style="margin-bottom:16px">Zu niedrig heißt wenig Gewinn. Zu hoch heißt, Kunden gehen.</p>
+            <div class="list" style="gap:18px" id="priceList"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- VERZEICHNIS -->
+      <section class="scr" data-screen="verzeichnis" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Active Directory · nordlicht.local · WinSec-OS Server 2022</div><h1>Active Directory</h1></div>
+    <div class="acts">
+      <button class="btn btn-s" type="button" data-ad-new="ou">Neue OU</button>
+      <button class="btn btn-s" type="button" data-ad-new="group">Neue Gruppe</button>
+      <button class="btn btn-s" type="button" data-ad-new="computer">Neuer Computer</button>
+      <button class="btn" type="button" data-ad-new="user">Neuer Benutzer</button>
+    </div>
+  </div>
+  <div class="ad-kpis">
+    <div class="card kpi"><div class="l">Aktive Benutzer</div><div class="v" id="adKpiUsers">0</div><div class="s" id="adKpiUsersS">—</div></div>
+    <div class="card kpi"><div class="l">Gruppen</div><div class="v" id="adKpiGroups">0</div><div class="s">Sicherheit und Verteiler</div></div>
+    <div class="card kpi"><div class="l">Computer</div><div class="v" id="adKpiComp">0</div><div class="s">inklusive Domänencontroller</div></div>
+    <div class="card kpi"><div class="l">Sicherheitswert</div><div class="v" id="adKpiScore">0</div><div class="s">von 100</div></div>
+    <div class="card kpi"><div class="l">Replikation</div><div class="v" id="adKpiRepl">—</div><div class="s">DC-01 und DC-02</div></div>
+  </div>
+  <div class="tabs ad-tabs" role="tablist" aria-label="Bereiche">
+    <button type="button" role="tab" data-ad-tab="aduc" aria-selected="true">Benutzer und Computer</button>
+    <button type="button" role="tab" data-ad-tab="groups" aria-selected="false">Gruppen</button>
+    <button type="button" role="tab" data-ad-tab="gpo" aria-selected="false">Gruppenrichtlinien</button>
+    <button type="button" role="tab" data-ad-tab="sites" aria-selected="false">Standorte und Replikation</button>
+    <button type="button" role="tab" data-ad-tab="dns" aria-selected="false">DNS</button>
+    <button type="button" role="tab" data-ad-tab="sec" aria-selected="false">Sicherheit und Audit</button>
+    <button type="button" role="tab" data-ad-tab="bin" aria-selected="false">Papierkorb <span class="tag t-mut" id="adBinCount">0</span></button>
+  </div>
+
+  <div data-ad-panel="aduc">
+    <div class="ad-aduc">
+      <aside class="card ad-tree" id="adTree" aria-label="Verzeichnisbaum"></aside>
+      <div class="card ad-main">
+        <div class="ad-listhead"><div class="ad-crumbs" id="adCrumb"></div><input class="inp" id="adSearch" placeholder="Suchen: Name, Anmeldename, IP" aria-label="Objekte suchen"></div>
+        <div class="tw"><table><thead id="adListHead"></thead><tbody id="adList"></tbody></table></div>
+      </div>
+      <aside class="card ad-props" id="adProps" aria-label="Eigenschaften"></aside>
+    </div>
+  </div>
+
+  <div data-ad-panel="groups" hidden>
+    <div class="ad-two">
+      <div class="card"><input class="inp" id="adGrpQ" placeholder="Gruppe suchen" aria-label="Gruppen suchen"><div id="adGrpList" class="ad-glist"></div></div>
+      <div class="card" id="adGrpDetail"></div>
+    </div>
+  </div>
+
+  <div data-ad-panel="gpo" hidden>
+    <div class="ad-gpo">
+      <div class="card"><div class="card-h"><h2>Gruppenrichtlinienobjekte</h2></div><div id="adGpoList" class="ad-glist"></div></div>
+      <div class="card" id="adGpoDetail"></div>
+      <div class="stack"><div class="card" id="adRsop"></div><div class="card" id="adPso"></div></div>
+    </div>
+  </div>
+
+  <div data-ad-panel="sites" hidden>
+    <div class="grid g2e">
+      <div class="stack">
+        <div class="card"><div class="card-h"><h2>Standorte und Subnetze</h2></div><div class="tw"><table><thead><tr><th>Standort</th><th>Subnetz</th><th>Domänencontroller</th><th>Katalog</th></tr></thead><tbody id="adSites"></tbody></table></div></div>
+        <div class="card"><div class="card-h"><h2>Standortverknüpfungen</h2></div><div class="tw"><table><thead><tr><th>Verknüpfung</th><th>Standorte</th><th>Kosten</th><th>Intervall</th></tr></thead><tbody id="adLinks"></tbody></table></div></div>
+        <div class="card"><div class="card-h"><h2>Betriebsmasterrollen (FSMO)</h2></div><div class="tw"><table><thead><tr><th>Rolle</th><th>Inhaber</th><th><span class="sr">Aktion</span></th></tr></thead><tbody id="adFsmo"></tbody></table></div></div>
+      </div>
+      <div class="stack">
+        <div class="card"><div class="card-h"><h2>Domänencontroller</h2></div><div class="tw"><table><thead><tr><th>Name</th><th>Standort</th><th>IP</th><th>Status</th></tr></thead><tbody id="adDcs"></tbody></table></div></div>
+        <div class="card"><div class="card-h"><h2>Replikation</h2><button class="btn btn-sm" type="button" data-ad-repl>Jetzt replizieren</button></div><div id="adReplNote" style="margin-bottom:12px"></div><div class="tw"><table><thead><tr><th>Richtung</th><th>Partition</th><th>Letzter Erfolg</th><th>Status</th></tr></thead><tbody id="adRepl"></tbody></table></div></div>
+      </div>
+    </div>
+  </div>
+
+  <div data-ad-panel="dns" hidden>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><div><h2>Zone nordlicht.local</h2><div class="hint" style="margin-top:4px">Active-Directory-integriert, sichere dynamische Updates</div></div><div class="acts"><button class="btn btn-s btn-sm" type="button" data-ad-scav>Veraltete bereinigen</button><button class="btn btn-sm" type="button" data-ad-dnsnew>Neuer Eintrag</button></div></div>
+        <div class="tw"><table><thead><tr><th>Name</th><th>Typ</th><th>Wert</th><th>Zeitstempel</th><th><span class="sr">Aktion</span></th></tr></thead><tbody id="adDns"></tbody></table></div></div>
+      <div class="card"><div class="card-h"><h2>Namensauflösung testen</h2></div>
+        <div class="ad-addrow"><input class="inp mono" id="adNs" placeholder="dc-02" aria-label="Name zum Auflösen"><button class="btn btn-sm" type="button" data-ad-ns>Auflösen</button></div>
+        <pre class="term" id="adNsOut" style="margin-top:12px;min-height:80px">nslookup: Namen eingeben, zum Beispiel dc-02.</pre>
+        <p class="hint">DC-02 steht laut Inventar unter 10.0.3.10.</p></div>
+    </div>
+  </div>
+
+  <div data-ad-panel="sec" hidden>
+    <div class="grid g2">
+      <div class="card"><div class="card-h"><h2>Befunde</h2></div><div id="adScore" style="margin-bottom:14px"></div><div id="adFindings"></div></div>
+      <div class="card"><div class="card-h"><h2>Sicherheitsprotokoll</h2><span class="hint">Ereignis-IDs wie auf echten Domänencontrollern</span></div><div class="tw"><table><thead><tr><th>Zeit</th><th>ID</th><th>Ereignis</th></tr></thead><tbody id="adEvents"></tbody></table></div></div>
+    </div>
+  </div>
+
+  <div data-ad-panel="bin" hidden>
+    <div class="card"><div class="card-h"><div><h2>AD-Papierkorb</h2><div class="hint" style="margin-top:4px">Gelöschte Objekte bleiben 180 Tage mit allen Attributen und Gruppen wiederherstellbar.</div></div></div>
+      <div class="tw"><table><thead><tr><th>Objekt</th><th>Typ</th><th>Ursprüngliche OU</th><th>Gelöscht</th><th>Frist</th><th><span class="sr">Aktion</span></th></tr></thead><tbody id="adBin"></tbody></table></div></div>
+  </div>
+</section>
+
+
+      <!-- EINSTELLUNGEN -->
+      <section class="scr" data-screen="einstellungen" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Spiel · Konto <span class="js-user">—</span></div><h1>Dein Spiel, deine Regeln.</h1></div>
+        </div>
+        <div class="grid g2e">
+          <div class="stack">
+            <div class="card">
+              <h2 style="margin-bottom:6px">Darstellung</h2>
+              <div class="row-sw"><div><div style="font-weight:650">Design</div><div class="hint">Hell, dunkel oder wie das System</div></div><div class="seg" role="group" aria-label="Design" data-theme-group>
+                <button type="button" data-theme-set="light">Hell</button><button type="button" data-theme-set="dark">Dunkel</button><button type="button" data-theme-set="system">System</button></div></div>
+              <div class="row-sw"><div><div style="font-weight:650">Sprache</div><div class="hint">Wirkt sofort</div></div><div class="seg" role="group" aria-label="Sprache"><button type="button" aria-pressed="true" data-lang="de">Deutsch</button><button type="button" aria-pressed="false" data-lang="en">English</button></div></div>
+              <div class="row-sw"><div><div style="font-weight:650">Textgröße</div><div class="hint">Für alle Seiten</div></div><div class="seg" role="group" aria-label="Textgröße"><button type="button" aria-pressed="false" data-fs="normal">Normal</button><button type="button" aria-pressed="true" data-fs="large">Groß</button></div></div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:6px">Spiel</h2>
+              <div class="row-sw"><div><div style="font-weight:650">Spielgeschwindigkeit</div><div class="hint">Nur für Einzelspiele</div></div><div class="seg" role="group" aria-label="Geschwindigkeit"><button type="button" aria-pressed="false" data-speed="pause">Pause</button><button type="button" aria-pressed="true" data-speed="normal">Normal</button><button type="button" aria-pressed="false" data-speed="fast">Schnell</button></div></div>
+              <div class="row-sw"><div><div style="font-weight:650">KI-Texte</div><div class="hint">Lokale KI für Kundentexte. Aus: Vorlagen.</div></div><button class="sw" type="button" role="switch" aria-checked="true" data-pref="ai" aria-label="KI-Texte"></button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Hinweise und Warnungen</div><div class="hint">Töne bei SLA und Major Incidents</div></div><button class="sw" type="button" role="switch" aria-checked="true" data-pref="sound" aria-label="Töne"></button></div>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h2 style="margin-bottom:6px">Barrierefreiheit</h2>
+              <div class="row-sw"><div><div style="font-weight:650">Reduzierte Bewegung</div><div class="hint">Keine Animationen</div></div><button class="sw" type="button" role="switch" aria-checked="false" data-pref="motion" aria-label="Reduzierte Bewegung"></button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Farbenblind-sichere Farben</div><div class="hint">Für Prioritäten und Status</div></div><button class="sw" type="button" role="switch" aria-checked="true" data-pref="cb" aria-label="Farbenblind-sicher"></button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Tastaturkürzel</div><div class="hint">Schnell zwischen Tickets wechseln</div></div><button class="sw" type="button" role="switch" aria-checked="true" data-pref="keys" aria-label="Tastaturkürzel"></button></div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:6px">Benachrichtigungen</h2>
+              <div class="row-sw"><div><div style="font-weight:650">Im Spiel</div><div class="hint">Tickets, SLA, Major Incidents</div></div><button class="sw" type="button" role="switch" aria-checked="true" data-pref="ingame" aria-label="Im Spiel"></button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Per E-Mail</div><div class="hint">Nur wenn der Server E-Mail nutzt</div></div><button class="sw" type="button" role="switch" aria-checked="false" data-pref="mail" aria-label="E-Mail"></button></div>
+            </div>
+            <div class="card" style="border-color:color-mix(in srgb,var(--bad) 40%,var(--line))">
+              <h2 style="margin-bottom:6px;color:var(--bad)">Daten und Konto</h2>
+              <div class="row-sw"><div><div style="font-weight:650">Profil</div><div class="hint">Anzeigename und E-Mail</div></div><button class="btn btn-s btn-sm" type="button" data-act="profil">Bearbeiten</button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Kennwort</div><div class="hint">Mindestens 8 Zeichen</div></div><button class="btn btn-s btn-sm" type="button" data-act="pwchange">Ändern</button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Alle Daten exportieren</div><div class="hint">Profil, Einstellungen und alle Speicherstände als JSON</div></div><button class="btn btn-s btn-sm" type="button" data-act="export">Exportieren</button></div>
+              <div class="row-sw"><div><div style="font-weight:650">Konto löschen</div><div class="hint">Nicht umkehrbar. Vorher exportieren.</div></div><button class="btn btn-d btn-sm" type="button" data-act="deleteacc">Konto löschen</button></div>
+            </div>
+          </div>
+        </div>
+      <div class="card"><h2 style="margin-bottom:6px">Tutorial und Hilfe</h2><div class="row-sw"><div><div style="font-weight:650">Tutorial neu starten</div><div class="hint">Legt einen Übungsstand „Tutorial“ an</div></div><button class="btn btn-s btn-sm" type="button" data-act="tutorial">Starten</button></div><div class="row-sw"><div><div style="font-weight:650">Glossar</div><div class="hint">ITSM-Begriffe in Kurzform</div></div><button class="btn btn-s btn-sm" type="button" data-act="glossary">Öffnen</button></div></div>
+</section>
+
+      <!-- SERVER-ADMIN -->
+      <section class="scr" data-screen="admin" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Server · <span id="admServerName">CraftIT</span> · Version <span id="admVersion">–</span></div><h1 id="admTitle">Server-Admin</h1></div>
+          <div class="acts">
+            <button class="btn btn-s" type="button" id="admBackupBtn">Backup jetzt</button>
+            <button class="btn btn-s" type="button" id="maintBtn" aria-pressed="false">Wartungsmodus</button>
+          </div>
+        </div>
+        <div class="grid g4">
+          <div class="card kpi"><div class="l">Datenbank</div><div class="v" id="admDb">–</div><div class="s" id="admDbS"></div></div>
+          <div class="card kpi"><div class="l">KI-Modell</div><div class="v" id="admAi">–</div><div class="s" id="admAiS"></div></div>
+          <div class="card kpi"><div class="l">Letzte Sicherung</div><div class="v" id="admBackup">–</div><div class="s" id="admBackupS"></div></div>
+          <div class="card kpi"><div class="l">Speicher frei</div><div class="v" id="admDisk">–</div><div class="s" id="admDiskS"></div></div>
+        </div>
+        <div class="grid g2">
+          <div class="stack">
+            <div class="card">
+              <div class="card-h"><h2>Benutzer</h2><button class="btn" type="button" id="admInviteBtn">Einladung erstellen</button></div>
+              <div class="tw" style="border:0;border-radius:0">
+                <table>
+                  <thead><tr><th>Name</th><th>Rolle</th><th>Stände</th><th>Status</th><th><span class="sr">Aktion</span></th></tr></thead>
+                  <tbody id="userRows"></tbody>
+                </table>
+              </div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:10px">Einladungen</h2>
+              <div class="list" id="admInvites"></div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:10px">Sicherungen</h2>
+              <div class="list" id="admBackups"></div>
+              <p class="hint" style="margin-top:10px">Sicherungen liegen im Datenordner unter <span class="mono">backups/</span>. Die letzten 10 bleiben erhalten.</p>
+            </div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <h2 style="margin-bottom:12px">Registrierung</h2>
+              <div class="seg" role="group" aria-label="Registrierung" id="regSeg">
+                <button type="button" data-reg="open" aria-pressed="false">Offen</button>
+                <button type="button" data-reg="invite" aria-pressed="true">Nur Einladung</button>
+                <button type="button" data-reg="closed" aria-pressed="false">Geschlossen</button>
+              </div>
+              <p class="hint" style="margin-top:12px" id="admLimits">Limits: 5 Stände je Spieler, 6 Koop-Mitglieder.</p>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:6px">KI und Support</h2>
+              <div class="row-sw"><div><div>KI-Endpunkt</div><div class="hint" id="aiHint">Adresse aus der Umgebungsvariable AI_URL</div></div><button class="btn btn-s btn-sm" type="button" id="aiTest">Testen</button></div>
+              <div class="row-sw"><div><div>Support-Anfragen</div><div class="hint">Fragen und Fehlermeldungen der Spieler</div></div><button class="btn btn-s btn-sm" type="button" data-go="support">Öffnen</button></div>
+            </div>
+            <div class="card">
+              <h2 style="margin-bottom:12px">Protokoll</h2>
+              <div class="log" id="admLog"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- HILFE UND SUPPORT -->
+      <section class="scr" data-screen="support" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Spiel · Hilfe</div><h1>Hilfe und Support</h1></div>
+          <div class="acts"><button class="btn" type="button" id="supNew">Neues Ticket</button></div>
+        </div>
+        <div class="tabs" role="tablist" aria-label="Hilfe">
+          <button type="button" role="tab" data-sup-tab="tickets" aria-selected="true">Anfragen</button>
+          <button type="button" role="tab" data-sup-tab="faq" aria-selected="false">Häufige Fragen</button>
+        </div>
+        <div data-sup-panel="tickets">
+          <div class="sup-layout">
+            <div class="card sup-side">
+              <div class="seg" id="supScope" role="group" aria-label="Ansicht" hidden>
+                <button type="button" data-sup-scope="mine" aria-pressed="true">Meine</button>
+                <button type="button" data-sup-scope="all" aria-pressed="false">Alle Spieler</button>
+              </div>
+              <div class="field" style="margin:0">
+                <label for="supStatusFilter">Status</label>
+                <select class="inp" id="supStatusFilter"><option value="">Alle</option><option value="offen">Offen</option><option value="bearbeitung">In Bearbeitung</option><option value="beantwortet">Beantwortet</option><option value="geschlossen">Geschlossen</option></select>
+              </div>
+              <div class="sup-list" id="supList"></div>
+            </div>
+            <div class="card sup-detail" id="supDetail"></div>
+          </div>
+        </div>
+        <div data-sup-panel="faq" hidden>
+          <div class="card" id="supFaq" style="margin-top:16px"></div>
+        </div>
+      </section>
+
+      <!-- CHANGELOG -->
+      <section class="scr" data-screen="changelog" hidden>
+        <div class="ph">
+          <div><div class="eyebrow">Spiel · Versionen</div><h1>Changelog</h1><p class="muted" id="clLead" style="margin-top:6px"></p></div>
+        </div>
+        <div class="card cl-filter">
+          <div class="field" style="flex:1 1 240px"><label for="clSearch">Suche</label><input class="inp" id="clSearch" type="search" placeholder="z. B. Werkbank" autocomplete="off"></div>
+          <div class="field" style="flex:0 1 220px"><label for="clType">Art</label><select class="inp" id="clType"><option value="">Alle Arten</option><option value="new">Neu</option><option value="changed">Geändert</option><option value="fixed">Behoben</option><option value="removed">Entfernt</option><option value="security">Sicherheit</option><option value="tech">Technik</option></select></div>
+          <span class="tag t-mut" id="clCount"></span>
+        </div>
+        <div class="stack" id="clList"></div>
+      </section>
+
+    <!-- ZUGRIFF -->
+<section class="scr" data-screen="zugriff" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Betrieb · Benutzer und Zugriff</div><h1>Zugriff</h1></div>
+    <div class="acts"><button class="btn btn-s" type="button" data-act="newaccess">Zugriff anfragen</button><button class="btn" type="button" data-go="verzeichnis">Konto im AD anlegen</button></div>
+  </div>
+  <div class="grid g2">
+    <div class="stack">
+      <div class="card" style="padding:0;overflow:hidden">
+        <div class="card-h" style="padding:20px 22px 0"><h2>Zugriffsanfragen</h2><span class="hint">Richtlinien werden vor der Freigabe geprüft</span></div>
+        <div class="tw" style="border:0;border-radius:0">
+          <table>
+            <thead><tr><th>Person</th><th>Anfrage</th><th>Richtlinie</th><th><span class="sr">Aktion</span></th></tr></thead>
+            <tbody id="accRows"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card"><div class="card-h"><h2>Teams und Rollen</h2></div><div class="list" id="teamList"></div></div>
+    </div>
+    <div class="card">
+      <div class="card-h"><h2>Audit-Verlauf</h2><span class="hint">Jede Änderung mit Wer, Was, Wann</span></div>
+      <div class="list" id="auditList"></div>
+    </div>
+  </div>
+</section>
+
+<!-- DIENSTE -->
+<section class="scr" data-screen="dienste" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Betrieb · Dienste</div><h1>Dienste</h1></div>
+    <div class="acts"><button class="btn" type="button" data-act="maint">Wartung planen</button></div>
+  </div>
+  <div class="grid g3">
+    <div class="card kpi"><div class="l">Verfügbarkeit (Mittel)</div><div class="v" id="svcAvail">—</div><div class="s">über alle Dienste</div></div>
+    <div class="card kpi"><div class="l">Warnungen</div><div class="v" id="svcWarn" style="color:var(--warn)">0</div><div class="s">Störung oder hohe Auslastung</div></div>
+    <div class="card kpi"><div class="l">Wartungen geplant</div><div class="v" id="svcMaint">0</div><div class="s">als Change beim CAB</div></div>
+  </div>
+  <div class="tw">
+    <table>
+      <thead><tr><th>Dienst</th><th>Verfügbarkeit</th><th>Kapazität</th><th>Status</th><th><span class="sr">Aktion</span></th></tr></thead>
+      <tbody id="svcRows"></tbody>
+    </table>
+  </div>
+  <div class="grid g2e">
+    <div class="card"><div class="card-h"><h2>Warnungen</h2></div><div class="stack" id="svcAlerts" style="gap:10px"></div></div>
+    <div class="card"><div class="card-h"><h2>Wartung</h2></div><div class="list" id="maintList"></div></div>
+  </div>
+  <div class="note info">Dienste zeigen nur Wirkung und Entscheidungen. Echte Server-Befehle gibt es im Spiel nicht.</div>
+</section>
+
+<!-- BERICHTE -->
+<section class="scr" data-screen="berichte" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Betrieb · Auswertung</div><h1>Berichte</h1></div>
+    <div class="seg" role="group" aria-label="Zeitraum"><button type="button" data-period="w" aria-pressed="true">Woche</button><button type="button" data-period="m" aria-pressed="false">Monat</button></div>
+  </div>
+  <div class="grid g4">
+    <div class="card kpi"><div class="l">Kundenzufriedenheit</div><div class="v" id="repSat">—</div><div class="s">von 5 Sternen</div></div>
+    <div class="card kpi"><div class="l">SLA eingehalten</div><div class="v" id="repSla" style="color:var(--ok)">—</div><div class="s">Reaktion und Lösung</div></div>
+    <div class="card kpi"><div class="l">Teamauslastung</div><div class="v" id="repLoad">—</div><div class="s">Kapazität genutzt</div></div>
+    <div class="card kpi"><div class="l">Offene Tickets</div><div class="v" id="repOpen">0</div><div class="s" id="repClosed">—</div></div>
+  </div>
+  <div class="grid g2e">
+    <div class="card"><div class="card-h"><h2>Reaktionszeiten nach Priorität</h2></div><div class="stack" id="repBars" style="gap:16px"></div></div>
+    <div class="card"><div class="card-h"><h2>Zufriedenheit nach Thema</h2></div><div class="stack" id="repSatBars" style="gap:16px"></div></div>
+  </div>
+  <div class="grid g2e">
+    <div class="card"><div class="card-h"><h2>Erklärungen</h2></div><div class="stack" id="repExplain" style="gap:10px"></div></div>
+    <div class="card"><div class="card-h"><h2>Aktivität</h2></div><div class="list" id="repActivity"></div></div>
+  </div>
+</section>
+
+<!-- ASSETS UND ROUTINEN -->
+<section class="scr" data-screen="routinen" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">ITSM · Assets und Routinen</div><h1>Assets und Routinen</h1></div>
+  </div>
+  <div class="grid g2e">
+    <div class="card"><div class="card-h"><h2>Wiederkehrende Aufgaben</h2></div><div class="list" id="routineRows"></div></div>
+    <div class="card"><div class="card-h"><h2>Richtlinien</h2><span class="hint">Änderungen laufen als Change</span></div><div class="list" id="policyList"></div></div>
+  </div>
+  <div class="card"><div class="card-h"><h2>Betriebsmittel</h2><span class="hint">Mangel blockiert Arbeit</span></div><div class="list" id="resRows"></div></div>
+  <div class="note info">Erledigte Routinen senken die Wahrscheinlichkeit von Wiederholungs-Incidents am Gerät. Vergessene Routinen erhöhen sie.</div>
+</section>
+
+<!-- WERKSTATT -->
+<section class="scr" data-screen="werkstatt" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Betrieb · Hardware-Werkstatt</div><h1>Werkstatt</h1></div>
+  </div>
+  <div class="seg wj-tabs" role="group" aria-label="Werkstatt-Bereich">
+    <button type="button" data-wtab-btn="jobs" aria-pressed="true">Aufträge</button>
+    <button type="button" data-wtab-btn="bench" aria-pressed="false">Werkbank</button>
+    <button type="button" data-wtab-btn="stock" aria-pressed="false">Lager</button>
+    <button type="button" data-wtab-btn="stations" aria-pressed="false">Ausstattung</button>
+  </div>
+
+  <div data-wtab="jobs">
+    <div class="grid g4">
+      <div class="card kpi"><div class="l">Offene Aufträge</div><div class="v" id="wjKpiOpen">0</div><div class="s">in Bearbeitung</div></div>
+      <div class="card kpi"><div class="l">Werkbank</div><div class="v" id="wjKpiBench" style="font-size:26px">frei</div><div class="s">Laptop Steuerbüro Hahn</div></div>
+      <div class="card kpi"><div class="l">Bestellungen unterwegs</div><div class="v" id="wjKpiOrders">0</div><div class="s">Lieferung am Tag der Ankunft</div></div>
+      <div class="card kpi"><div class="l">Leihgeräte frei</div><div class="v" id="wjKpiLoan">2</div><div class="s">von 2</div></div>
+    </div>
+    <div class="grid g2" style="margin-top:20px">
+      <div class="stack" id="wjList"></div>
+      <div class="stack">
+        <div class="card"><div class="card-h"><h2>Leihgeräte</h2></div><div id="wjLoaners"></div></div>
+        <div class="card">
+          <div class="card-h"><h2>Ablauf eines Auftrags</h2></div>
+          <ol class="wj-flow">
+            <li>Eingang annehmen und Gerät erfassen</li>
+            <li>Daten sichern (NAS oder Datensicherungs-Station)</li>
+            <li>Diagnose, am besten mit Prüfstand</li>
+            <li>Angebot: Reparatur, Ersatz, Herstellergarantie oder Abschreiben</li>
+            <li>Kunde entscheidet</li>
+            <li>Reparatur, Test und Rückgabe mit Rechnung</li>
+          </ol>
+          <p class="hint" style="margin-top:12px">Ohne Sicherung kann eine Reparatur Kundendaten kosten. Das gibt ein Ticket.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div data-wtab="bench" hidden>
+    <div class="grid g4">
+      <div class="card kpi"><div class="l">Werkstatt-Zeit</div><div class="v" id="wbTime" style="font-size:28px">0 min</div><div class="s">Laptop Steuerbüro Hahn (T-1032)</div></div>
+      <div class="card kpi"><div class="l">Qualität der Arbeit</div><div class="v" id="wbQuality">100 %</div><div class="s">sinkt bei Fehlern</div></div>
+      <div class="card kpi"><div class="l">WLAN-Module im Lager</div><div class="v" id="wbStock" style="font-size:28px">2 Module</div><div class="s">aus dem Tab Lager</div></div>
+      <div class="card kpi"><div class="l">Wärmeleitpaste</div><div class="v" id="wbPaste" style="font-size:28px">1 Tube</div><div class="s">für den Kühlkörper</div></div>
+    </div>
+    <div class="wb-layout" style="margin-top:20px">
+      <div class="card wb-stage">
+        <div class="card-h">
+          <div><h2>Laptop · Business 14 G3</h2><div class="hint" style="margin-top:4px">Bluetooth und WLAN fallen aus. Klick auf Schrauben und Bauteile, dann wählst du unten rechts den Schritt.</div></div>
+          <button class="btn btn-s btn-sm" type="button" id="wbReset">Neu beginnen</button>
+        </div>
+        <div class="wb-tools">
+          <div class="seg" role="group" aria-label="Werkzeug" id="wbTools">
+            <button type="button" data-wb-tool="ph0" aria-pressed="true">PH0 klein</button>
+            <button type="button" data-wb-tool="torx" aria-pressed="false">Torx T5</button>
+            <button type="button" data-wb-tool="pinzette" aria-pressed="false">Pinzette</button>
+            <button type="button" data-wb-tool="spudger" aria-pressed="false">Spudger</button>
+            <button type="button" data-wb-tool="druck" aria-pressed="false">Druckluft</button>
+          </div>
+          <button class="btn btn-s btn-sm" type="button" id="wbTray" aria-pressed="true">Schraubenschale: an</button>
+          <button class="btn btn-s btn-sm" type="button" id="wbEsd" aria-pressed="false">Antistatik-Armband anlegen</button>
+          <button class="btn btn-sm" type="button" id="wbCover">Bodenplatte abnehmen</button>
+        </div>
+        <div class="wb-svg" id="wbSvg"></div>
+        <p class="hint" style="margin-top:12px">Ohne Armband, mit angeschlossenem Akku oder mit Gewalt droht ein Schaden am Mainboard. Messen geht jederzeit.</p>
+      </div>
+      <aside class="stack">
+        <div class="card"><div class="card-h"><h2>Bauteil</h2></div><div id="wbDetail"></div></div>
+        <div class="card"><div class="card-h"><h2>Schritte</h2></div><div id="wbSteps" class="wb-steps"></div></div>
+        <div class="card"><div class="card-h"><h2>Test</h2><button class="btn btn-sm" type="button" id="wbTest">Zusammenbauen und testen</button></div><div id="wbResult"></div></div>
+        <div class="card"><div class="card-h"><h2>Protokoll</h2></div><div class="log" id="wbLog"></div></div>
+      </aside>
+    </div>
+  </div>
+
+  <div data-wtab="stock" hidden>
+    <div class="grid g2">
+      <div class="tw"><table><thead><tr><th>Teil</th><th>Lager</th><th>Preis</th><th>Status</th><th><span class="sr">Bestellen</span></th></tr></thead><tbody id="wjParts"></tbody></table></div>
+      <div class="card"><div class="card-h"><h2>Bestellungen</h2><span class="hint">Lieferung kommt zum Schichtende</span></div><div class="list" id="wjOrders"></div></div>
+    </div>
+  </div>
+
+  <div data-wtab="stations" hidden>
+    <div class="grid g3" id="wjStations"></div>
+  </div>
+</section>
+
+
+<!-- ARBEITSRECHNER -->
+<section class="scr" data-screen="rechner" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">Betrieb · Dein Arbeitsplatz</div><h1>Arbeitsrechner</h1></div>
+    <div class="acts"><span class="tag t-mut" id="pcBal">Kasse 18.420 €</span></div>
+  </div>
+  <div class="wsd" aria-label="WinSec-OS Desktop">
+    <div class="wsd-desk" id="wsdDesk">
+      <div class="wsd-icons" id="pcIcons" role="list" aria-label="Desktop-Symbole"></div>
+      <div class="wsd-wins" id="wsdWins"></div>
+      <div class="wsd-empty" id="wsdEmpty"><div><h2>Willkommen am Arbeitsrechner</h2><p class="muted">Doppelklick auf ein Symbol öffnet eine App. Rechtsklick auf den Hintergrund zeigt weitere Optionen.</p></div></div>
+      <div class="wsd-startmenu" id="wsdStart" hidden>
+        <div class="wsd-st-h">WinSec-OS</div>
+        <div class="wsd-st-list" id="wsdStartList"></div>
+        <div class="wsd-st-foot"><button type="button" data-start-go="login">Abmelden</button><button type="button" data-start-off>Herunterfahren</button></div>
+      </div>
+      <div class="wsd-ctx" id="wsdCtx" role="menu" hidden>
+        <button type="button" role="menuitem" data-ctx="wall">Hintergrund wechseln</button>
+        <button type="button" role="menuitem" data-ctx="min">Alle Fenster minimieren</button>
+        <button type="button" role="menuitem" data-ctx="cascade">Fenster anordnen</button>
+      </div>
+    </div>
+    <div class="wsd-task">
+      <button type="button" class="wsd-startbtn" id="wsdStartBtn" aria-haspopup="true" aria-expanded="false" aria-label="Startmenü"><span class="wsd-win4" aria-hidden="true"><i></i><i></i><i></i><i></i></span></button>
+      <div class="wsd-tasks" id="wsdTasks"></div>
+      <div class="wsd-tray"><span id="wsdTray"></span></div>
+    </div>
+  </div>
+</section>
+
+<!-- POST-MORTEM -->
+<section class="scr" data-screen="postmortem" hidden>
+  <div class="ph">
+    <div><div class="eyebrow">ITSM · Aus Vorfällen lernen</div><h1>Post-Mortems</h1></div>
+    <div class="acts"><span class="hint">Nach jedem Major Incident entsteht ein Bericht</span></div>
+  </div>
+  <div class="pm-layout"><div class="pm-list" id="pmList"></div><div class="card pm-detail" id="pmDetail"></div></div>
+</section>
+</main>
+  </div>
+</div>
+
+<!-- RDP-FERNWARTUNG (Vollbild über der Seite) -->
+<div id="rdp" class="rdp" role="dialog" aria-modal="true" aria-label="Fernwartung" hidden>
+  <div class="rdp-bar">
+    <span class="rdp-title" id="rdpTitle">Fernwartung</span>
+    <span class="rdp-time" id="rdpTime">Sitzungszeit 0 min</span>
+    <button class="rdp-btn" type="button" id="rdpClose">Trennen</button>
+  </div>
+  <div class="rdp-desk">
+    <div class="rdp-icons">
+      <button type="button" class="rdp-icon" data-rdp-app="cmd"><span class="rdp-ico">&gt;_</span>Eingabeaufforderung</button>
+      <button type="button" class="rdp-icon" data-rdp-app="events"><span class="rdp-ico">!</span>Ereignisanzeige</button>
+      <button type="button" class="rdp-icon" data-rdp-app="devmgr"><span class="rdp-ico">#</span>Geräte-Manager</button>
+      <button type="button" class="rdp-icon" data-rdp-app="svc"><span class="rdp-ico">&#9881;</span>Dienste</button>
+      <button type="button" class="rdp-icon" data-rdp-app="net"><span class="rdp-ico">~</span>Netzwerk</button>
+    </div>
+    <div class="rdp-win" id="rdpWin" hidden>
+      <div class="rdp-wh"><span id="rdpWt">Eingabeaufforderung</span><button type="button" class="rdp-x" id="rdpWc" aria-label="Fenster schließen">✕</button></div>
+      <div class="rdp-wb" id="rdpWb"></div>
+    </div>
+  </div>
+  <div class="rdp-task">
+    <button class="rdp-start" type="button" id="rdpStart">Start</button>
+    <span class="rdp-note">Sitzung aktiv. Der Kunde sieht, was du tust.</span>
+  </div>
+</div>
+
+<div class="toasts" id="toasts" role="status" aria-live="polite"></div>
+<div id="modalRoot"></div>
+
+<script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+node_modules
+data
+.test-data
+test-results
+playwright-report
+tests
+mockup
+.git
+.env
+*.log
