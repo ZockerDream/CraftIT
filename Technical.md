@@ -6,28 +6,36 @@ Record every stack or architecture change here, with the date.
 
 | Area | Choice | Since |
 |------|--------|-------|
-| Language / runtime | TBD | - |
+| Mockup | Single HTML file with inline CSS and JavaScript, no build step | 2026-11-26 |
+| Language / runtime | TBD (chosen for version 1.0.0) | - |
 | Backend | TBD | - |
 | Frontend | TBD | - |
 | Database | TBD | - |
-| Deployment | TBD (Docker?) | - |
+| Deployment | TBD (Docker) | - |
 
 ## Architecture
 
-Planned (not built yet):
+Planned:
 
 ```
-Browser (game UI)  <-->  Game server (API + save data)  <-->  PostgreSQL or SQLite
+Browser (game UI)  <-->  Game server (API + save data)  <-->  SQLite or PostgreSQL
                                   |
                                   |  OpenAI-compatible HTTP (optional)
                                   v
                          Local LLM container (llama.cpp)
 ```
 
-- **Game logic is deterministic** and lives on the server (or in one shared module). The AI never decides outcomes (see Concept.md section 12).
+- **Game logic is deterministic.** The AI never decides outcomes (see Concept.md section 12).
 - **Content generator** has two providers: `llm` (local model) and `template` (offline). Both produce the same JSON schema. The game runs with `template` only.
 - **Background job** pre-generates tickets and dialogues in batches and stores them.
 - **Local LLM** follows the Compain setup: llama.cpp server, GGUF model, CPU by default, optional NVIDIA GPU. Model client is OpenAI-compatible; `mock` URL for tests.
+
+## Mockup
+
+- File: [mockup/craftit-mockup.html](mockup/craftit-mockup.html).
+- All state lives in memory in one script. Nothing is saved, except a few viewer settings in `localStorage` (theme, notes, price sliders).
+- Design tokens: CSS custom properties for light and dark, switched by `data-theme` on the root element or by the system setting.
+- Tested with headless Chrome: route sweep at 1400 and 400 pixels wide, 22 app flows, 22 Active Directory flows, workbench repair path.
 
 ## Content generation
 
@@ -41,7 +49,7 @@ Browser (game UI)  <-->  Game server (API + save data)  <-->  PostgreSQL or SQLi
 
 ## Data model
 
-> TODO: Main entities and their relations.
+> Will be defined with version 1.0.0.
 
 ## Configuration and secrets
 
@@ -51,4 +59,5 @@ Browser (game UI)  <-->  Game server (API + save data)  <-->  PostgreSQL or SQLi
 
 | Date | Decision | Reason |
 |------|----------|--------|
-| - | - | - |
+| 2026-11-26 | Build a clickable single-file mockup before any application code | Agree on screens and flows with the owner before choosing the stack |
+| 2026-11-26 | Fictional OS name "WinSec-OS" in all simulated systems | No real product names in the game |
