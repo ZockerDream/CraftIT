@@ -262,7 +262,13 @@ function togglePop(btn, pop){
   closePops();
   if (open){ pop.hidden = false; btn.setAttribute("aria-expanded", "true"); }
 }
-$("#bellBtn").addEventListener("click", function(e){ e.stopPropagation(); togglePop(this, $("#bellPop")); });
+$("#bellBtn").addEventListener("click", function(e){
+  e.stopPropagation();
+  var pop = $("#bellPop");
+  if (pop.hidden) renderBell();          // fresh list, new ones highlighted
+  togglePop(this, pop);
+  if (!pop.hidden) markBellRead();        // looked at: read
+});
 $("#userBtn").addEventListener("click", function(e){ e.stopPropagation(); togglePop(this, $("#userPop")); });
 document.addEventListener("click", function(e){
   if (!e.target.closest(".pop")) closePops();
@@ -418,7 +424,7 @@ function renderTickets(){
       '<td>' + esc(IMPACT[t.impact]) + '<div class="sub">' + esc(URGENCY[t.urgency]) + '</div></td>' +
       '<td>' + prioTag(t.prio) + '</td>' +
       '<td class="num">' + esc(t.sla) + '</td>' +
-      '<td>' + statusTag(t.status) + '</td>' +
+      '<td>' + statusTag(t.status) + (isOpen(t) && t.progress ? '<div class="bar' + (t.progress >= 70 ? ' ok' : '') + '" style="margin-top:6px;height:4px" title="' + Math.floor(t.progress) + ' % bearbeitet"><i style="width:' + Math.floor(t.progress) + '%"></i></div>' : '') + '</td>' +
       '<td>' + esc(t.who) + '</td>' +
       '<td><button class="btn btn-s btn-sm" type="button" data-assign="' + t.id + '">Zuweisen</button></td></tr>';
   }).join("");
@@ -477,7 +483,7 @@ function renderTicket(){
     "<dt>Priorität</dt><dd>" + prioTag(t.prio) + "</dd>" +
     "<dt>Zuständig</dt><dd>" + esc(t.who) + "</dd>" +
     "<dt>SLA-Rest</dt><dd class=\"num\">" + esc(t.sla) + "</dd>";
-  $("#tkSla").textContent = t.sla;
+  renderTicketLive(t);
   renderThread(t);
   $("#tkTerm").innerHTML = baseTerm + t.log.map(function(l){ return '<span>' + esc(l) + '</span>'; }).join("");
   $("#tkInvCount").textContent = t.inv + (t.inv === 1 ? " Schritt bisher" : " Schritte bisher");
@@ -491,6 +497,7 @@ function investigate(k){
   var lines = INV[k];
   t.log.push(lines[0], lines[1]);
   t.inv++;
+  if (staffByName(t.who) && isOpen(t)) t.progress = Math.min(99, (t.progress || 0) + 8);   // your findings help the person working on it
   renderTicket();
   renderAll();
 }
@@ -5106,14 +5113,112 @@ function opsTick(){
     var n = assignedOpen(s).length;
     if (n) { s.energy = Math.max(5, s.energy - n); if (n > 2) s.stress = Math.min(100, s.stress + 1); }
   });
+  // Team activity only redraws the views it touches, so half-typed input elsewhere stays.
+  var touched = autoAssign().concat(staffWork());
+  if (touched.length) opsSync();
   renderLive();
+  var r = document.body.getAttribute("data-route");
+  if (r === "ticket" && touched.indexOf(currentTicket) >= 0) renderTicket();
+  if (r === "personal" && touched.length) renderStaff();
+}
+
+/* Arbeit: das Team holt sich Tickets selbst und arbeitet sie ab */
+var MAX_QUEUE = 3;   // open tickets one person takes on their own
+var STAGES = [[0, "Analyse"], [30, "Ursache eingrenzen"], [70, "Lösung umsetzen"], [95, "Test mit dem Kunden"]];
+function stageOf(p){ var s = STAGES[0][1]; STAGES.forEach(function(x){ if (p >= x[0]) s = x[1]; }); return s; }
+// Free for the team: nobody assigned, or the assigned person is sick or in training. Tickets of the player stay with the player.
+function needsOwner(t){
+  if (!isOpen(t) || t.status === "Wartet auf Kunde") return false;
+  if (!t.who || t.who === "—") return true;
+  var p = staffByName(t.who);
+  return !!p && !available(p);
+}
+// The person with the highest matching skill takes the ticket, as long as they have room. Most urgent tickets first.
+function autoAssign(){
+  var any = [];
+  tickets.filter(needsOwner).sort(function(a, b){ return a.slaMin - b.slaMin; }).forEach(function(t){
+    var sk = ticketSkill(t);
+    var best = staff.filter(function(s){ return available(s) && assignedOpen(s).length < MAX_QUEUE; })
+      .sort(function(a, b){ return skillOf(b, sk) - skillOf(a, sk) || assignedOpen(a).length - assignedOpen(b).length; })[0];
+    if (!best) return;
+    var prev = staffByName(t.who);
+    t.who = best.name;
+    if (t.status === "Offen") t.status = "In Arbeit";
+    addThread(t, "staff", best.name, "Ticket übernommen" + (prev ? " von " + prev.name + " (" + (prev.sickDays > 0 ? "krank" : "in Schulung") + ")" : "") + ". " + sk + " " + skillOf(best, sk) + " %.");
+    toast(best.name + " übernimmt " + t.id + " (" + sk + " " + skillOf(best, sk) + " %).");
+    any.push(t.id);
+  });
+  return any;
+}
+// Minutes a person with 100 % skill needs; less skill takes longer.
+var EFFORT = { "Kritisch":50, "Hoch":120, "Mittel":240, "Niedrig":300 };
+function effortFor(t, s){ return (EFFORT[t.prio] || 240) * (0.8 + 0.4 * rnd(t.id)) * (1.6 - skillOf(s, ticketSkill(t)) / 100); }
+// The ticket a person works on right now: the most urgent of their own.
+function currentWork(s){
+  return assignedOpen(s).filter(function(t){ return t.status !== "Wartet auf Kunde"; }).sort(function(a, b){ return a.slaMin - b.slaMin; })[0] || null;
+}
+// Returns the ids of tickets with a visible change (a new step in the thread, solved).
+function staffWork(){
+  var solved = [];
+  staff.forEach(function(s){
+    if (!available(s)) return;
+    var t = currentWork(s);
+    if (!t) return;
+    var before = t.progress || 0;
+    t.progress = Math.min(100, before + 100 / effortFor(t, s) * (s.energy < 25 ? 0.5 : 1));
+    if (before < 30 && t.progress >= 30) { addThread(t, "staff", s.name, "Analyse fertig, die Ursache wird eingegrenzt."); solved.push(t.id); }
+    if (before < 70 && t.progress >= 70) { addThread(t, "staff", s.name, "Ursache gefunden. Die Lösung wird umgesetzt."); solved.push(t.id); }
+    if (t.progress >= 100) {
+      var wasMajor = t.status === "Major Incident";
+      t.status = "Gelöst";
+      t.resolution = s.name + " hat die Ursache (" + ticketSkill(t) + ") gefunden und behoben. Kunde hat bestätigt.";
+      if (wasMajor) pmCreate(t);
+      if (closedInShift.indexOf(t.id) < 0) closedInShift.push(t.id);
+      addThread(t, "staff", s.name, "Lösung: " + t.resolution);
+      toast(s.name + " hat " + t.id + " gelöst: " + t.title + ".", "ok");
+      solved.push(t.id);
+    }
+  });
+  return solved;
+}
+function progressHtml(t){
+  var p = Math.floor(t.progress || 0), s = staffByName(t.who);
+  if (!isOpen(t)) return '<p class="hint">Gelöst' + (s ? ' von ' + esc(s.name) : '') + '.</p>';
+  if (!t.who || t.who === "—") return '<p class="hint">Noch niemand zuständig. Das Team übernimmt das Ticket, sobald jemand Platz hat.</p>';
+  if (!s) return '<p class="hint">Du bearbeitest das Ticket selbst. Untersuche es und dokumentiere die Lösung.</p>';
+  var head = '<div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + esc(s.name) + '</span><span class="num" id="tkProgPct">' + p + ' %</span></div>' +
+    '<div class="bar' + (p >= 70 ? ' ok' : '') + '" style="margin:10px 0 10px"><i style="width:' + p + '%"></i></div>';
+  var line;
+  if (!available(s)) line = (s.sickDays > 0 ? "krank" : "in Schulung") + ", die Arbeit ruht";
+  else if (t.status === "Wartet auf Kunde") line = "pausiert, wartet auf den Kunden";
+  else {
+    var cur = currentWork(s);
+    if (cur && cur.id !== t.id) line = "wartet: " + s.name.split(" ")[0] + " arbeitet zuerst an " + cur.id;
+    else {
+      var left = Math.ceil((100 - (t.progress || 0)) / 100 * effortFor(t, s) * (s.energy < 25 ? 2 : 1));
+      line = stageOf(p) + " · noch ca. " + fmtSla(left) + (s.energy < 25 ? " (müde, langsamer)" : "");
+    }
+  }
+  return head + '<p class="hint" id="tkProgLine">' + esc(line) + '</p><p class="hint" style="margin-top:6px">' + esc(ticketSkill(t)) + ' ' + skillOf(s, ticketSkill(t)) + ' %, Energie ' + s.energy + ' %</p>';
 }
 function renderLive(){
   renderCounters(); renderBell();
   var r = document.body.getAttribute("data-route");
   if (r === "uebersicht") { renderHome(); renderOverview(); }
   if (r === "tickets") renderTickets();
-  if (r === "ticket") { var t = findTicket(); var el = $("#tkSla"); if (t && el) el.textContent = t.sla; }
+  if (r === "ticket") renderTicketLive(findTicket());
+}
+function renderTicketLive(t){
+  if (!t || !$("#tkProg")) return;
+  $("#tkSla").textContent = t.sla;
+  $("#tkProg").innerHTML = progressHtml(t);
+  var full = slaFor(t.prio), pct = isOpen(t) ? Math.max(0, Math.min(100, Math.round(t.slaMin / full * 100))) : 100;
+  var bar = $("#tkSlaBar");
+  bar.className = "bar " + (t.breached ? "bad" : pct < 25 ? "bad" : pct < 50 ? "warn" : "ok");
+  bar.firstElementChild.style.width = (t.breached ? 100 : pct) + "%";
+  var owned = t.who && t.who !== "—";
+  $("#tkReact").textContent = owned ? "eingehalten" : "offen";
+  $("#tkReact").className = "tag " + (owned ? "t-ok" : "t-warn");
 }
 
 // Called by "Schicht beenden" after the day has moved on. Returns lines for the shift report.
@@ -5206,40 +5311,57 @@ function renderCounters(){
 function bellItems(){
   var it = [];
   tickets.filter(isOpen).forEach(function(t){
-    if (t.breached) it.push({ open:t.id, t:"SLA verletzt: " + t.title, s:t.id + " · " + t.cust, tag:"SLA", cls:"t-bad", w:0 });
-    else if (t.status === "Major Incident") it.push({ open:t.id, t:"Major Incident: " + t.title, s:t.id + " · SLA läuft in " + t.sla, tag:"Kritisch", cls:"t-bad", w:1 });
-    else if (t.slaMin <= 60) it.push({ open:t.id, t:t.title, s:t.id + " · SLA läuft in " + t.sla, tag:t.prio, cls:"t-warn", w:2 });
+    if (t.breached) it.push({ k:"sla:" + t.id, open:t.id, t:"SLA verletzt: " + t.title, s:t.id + " · " + t.cust, tag:"SLA", cls:"t-bad", w:0 });
+    else if (t.status === "Major Incident") it.push({ k:"mi:" + t.id, open:t.id, t:"Major Incident: " + t.title, s:t.id + " · SLA läuft in " + t.sla, tag:"Kritisch", cls:"t-bad", w:1 });
+    else if (t.slaMin <= 60) it.push({ k:"slaw:" + t.id, open:t.id, t:t.title, s:t.id + " · SLA läuft in " + t.sla, tag:t.prio, cls:"t-warn", w:2 });
+  });
+  tickets.filter(function(t){ return needsOwner(t) && !staffByName(t.who); }).forEach(function(t){
+    it.push({ k:"free:" + t.id, open:t.id, t:t.id + " wartet auf Bearbeitung", s:"Niemand im Team hat Platz · selbst übernehmen oder einstellen", tag:"Zuweisen", cls:"t-warn", w:2 });
   });
   changes.filter(function(c){ return c.status === "Zur Prüfung"; }).forEach(function(c){
-    it.push({ go:"changes", t:c.id + " wartet auf das CAB", s:c.type + "-Change · Risiko " + c.risk, tag:"CAB", cls:"t-warn", w:3 });
+    it.push({ k:"cab:" + c.id, go:"changes", t:c.id + " wartet auf das CAB", s:c.type + "-Change · Risiko " + c.risk, tag:"CAB", cls:"t-warn", w:3 });
   });
   staff.filter(function(s){ return s.sickDays > 0; }).forEach(function(s){
-    it.push({ go:"personal", t:s.name + " ist krank", s:"noch " + s.sickDays + (s.sickDays === 1 ? " Tag" : " Tage") + " · Vertretung planen", tag:"Personal", cls:"t-mut", w:4 });
+    it.push({ k:"sick:" + s.name, go:"personal", t:s.name + " ist krank", s:"noch " + s.sickDays + (s.sickDays === 1 ? " Tag" : " Tage") + " · Vertretung planen", tag:"Personal", cls:"t-mut", w:4 });
   });
   tickets.filter(isOpen).forEach(function(t){
     var p = staffByName(t.who);
-    if (p && !available(p)) it.push({ open:t.id, t:t.id + " ohne Bearbeitung", s:p.name + " ist " + (p.sickDays > 0 ? "krank" : "in Schulung") + " · neu zuweisen", tag:"Zuweisen", cls:"t-warn", w:2 });
+    if (p && !available(p)) it.push({ k:"own:" + t.id + ":" + p.name, open:t.id, t:t.id + " ohne Bearbeitung", s:p.name + " ist " + (p.sickDays > 0 ? "krank" : "in Schulung") + " · neu zuweisen", tag:"Zuweisen", cls:"t-warn", w:2 });
   });
   staff.filter(inTraining).forEach(function(s){
-    if (s.training.daysLeft === 1) it.push({ go:"personal", t:s.name + " beendet morgen „" + s.training.name + "“", s:"nach dem nächsten Schichtende wieder da", tag:"Schulung", cls:"t-info", w:6 });
+    if (s.training.daysLeft === 1) it.push({ k:"trn:" + s.name + ":" + s.training.course, go:"personal", t:s.name + " beendet morgen „" + s.training.name + "“", s:"nach dem nächsten Schichtende wieder da", tag:"Schulung", cls:"t-info", w:6 });
   });
   staff.filter(function(s){ return available(s) && s.stress >= 75; }).forEach(function(s){
-    it.push({ go:"personal", t:s.name + " ist stark gestresst", s:"Stress " + s.stress + " % · Tickets umverteilen", tag:"Personal", cls:"t-warn", w:4 });
+    it.push({ k:"stress:" + s.name, go:"personal", t:s.name + " ist stark gestresst", s:"Stress " + s.stress + " % · Tickets umverteilen", tag:"Personal", cls:"t-warn", w:4 });
   });
   invoices.filter(function(i){ return i.status === "überfällig"; }).forEach(function(i){
-    it.push({ go:"finanzen", t:"Rechnung " + i.id + " überfällig", s:i.cust + " · " + eur(i.amt), tag:"Finanzen", cls:"t-bad", w:5 });
+    it.push({ k:"inv:" + i.id, go:"finanzen", t:"Rechnung " + i.id + " überfällig", s:i.cust + " · " + eur(i.amt), tag:"Finanzen", cls:"t-bad", w:5 });
   });
-  if (cash < 0) it.push({ go:"finanzen", t:"Die Kasse ist im Minus", s:eur(cash), tag:"Kasse", cls:"t-bad", w:0 });
-  if (daysToPayday() <= 3) it.push({ go:"finanzen", t:"Gehälter in " + daysToPayday() + (daysToPayday() === 1 ? " Tag" : " Tagen"), s:eur(salaries() + loanRate()) + " fällig", tag:"Finanzen", cls:"t-info", w:6 });
+  if (cash < 0) it.push({ k:"cash", go:"finanzen", t:"Die Kasse ist im Minus", s:eur(cash), tag:"Kasse", cls:"t-bad", w:0 });
+  if (daysToPayday() <= 3) it.push({ k:"pay:" + (day + daysToPayday()), go:"finanzen", t:"Gehälter in " + daysToPayday() + (daysToPayday() === 1 ? " Tag" : " Tagen"), s:eur(salaries() + loanRate()) + " fällig", tag:"Finanzen", cls:"t-info", w:6 });
   return it.sort(function(a, b){ return a.w - b.w; });
+}
+// Read notifications stay in the list but no longer count. A key that is gone is forgotten, so the same problem coming back is new again.
+function bellRead(){ if (!ops.bellRead || typeof ops.bellRead !== "object") ops.bellRead = {}; return ops.bellRead; }
+function unreadCount(it){ var r = bellRead(); return it.filter(function(x){ return !r[x.k]; }).length; }
+function markBellRead(){
+  var r = bellRead();
+  bellItems().forEach(function(x){ r[x.k] = 1; });
+  setCnt("#bellCount", 0);
 }
 function renderBell(){
   var list = $("#bellList");
   if (!list) return;
-  var it = bellItems();
-  setCnt("#bellCount", it.length);
+  var it = bellItems(), r = bellRead(), keep = {};
+  it.forEach(function(x){ if (r[x.k]) keep[x.k] = 1; });
+  ops.bellRead = keep; r = keep;
+  var un = unreadCount(it);
+  setCnt("#bellCount", un, "", un + " ungelesene Mitteilungen");
+  var pop = $("#bellPop");
+  if (pop && !pop.hidden) return;   // keep the open list steady; it was marked read when it opened
   list.innerHTML = it.length ? it.slice(0, 8).map(function(x){
-    return '<button class="item" type="button" ' + (x.open ? 'data-open="' + esc(x.open) + '"' : 'data-go="' + x.go + '"') + '><span>' + esc(x.t) + '<br><span class="sub">' + esc(x.s) + '</span></span><span class="tag ' + x.cls + '">' + esc(x.tag) + '</span></button>';
+    var neu = !r[x.k];
+    return '<button class="item' + (neu ? ' unread' : ' read') + '" type="button" ' + (x.open ? 'data-open="' + esc(x.open) + '"' : 'data-go="' + x.go + '"') + '><span>' + (neu ? '<b class="new-dot" aria-label="neu"></b>' : '') + esc(x.t) + '<br><span class="sub">' + esc(x.s) + '</span></span><span class="tag ' + x.cls + '">' + esc(x.tag) + '</span></button>';
   }).join("") + (it.length > 8 ? '<div class="hint" style="padding:6px 12px">und ' + (it.length - 8) + ' weitere</div>' : '')
     : '<div class="hint" style="padding:4px 12px 10px">Keine Mitteilungen. Alles im Griff.</div>';
 }
@@ -5855,7 +5977,7 @@ function editUserModal(u){
 window.craftit = {
   state: function(){ return captureState(); },
   // Runs the game clock n minutes forward (tests, debugging). Same effect as waiting.
-  advance: function(n){ for (var i = 0; i < n; i++) tickClock(); return captureState().minutes; },
+  advance: function(n){ var was = paused; paused = false; for (var i = 0; i < n; i++) tickClock(); paused = was; return captureState().minutes; },
   info: function(){ return { saving:P.saving, dirty:!!P.save && P.lastSaved !== JSON.stringify(captureState()), save:P.save ? { id:P.save.id, name:P.save.name, rev:P.rev } : null, user:P.user ? P.user.username : null }; }
 };
 function boot(){

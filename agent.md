@@ -11,7 +11,7 @@ Working state for coding agents. Keep it short and current. **If a session ends 
 
 ## Work in progress
 
-Nothing in progress. Since 1.0.0 (unreleased, on `develop`): operations simulation, live overview, notifications and finances, ITSM pages with real data, staff assignment by skill and a training system. Candidate for release 1.1.0. Next candidates (ask the owner before starting):
+Nothing in progress. Since 1.0.0 (unreleased, on `develop`): operations simulation, live overview, notifications and finances, ITSM pages with real data, staff assignment by skill and a training system, the team taking and solving tickets with live progress, notifications with read state. Candidate for release 1.1.0. Next candidates (ask the owner before starting):
 - Move game rules from the browser to the server (Technical.md, decision of 2026-11-26).
 - English UI texts.
 - A fresh scenario per new game instead of the same Nordlicht world.

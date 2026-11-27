@@ -275,11 +275,14 @@
               <dl class="kv" id="tkKv"></dl>
             </div>
             <div class="card">
+              <h2 style="margin-bottom:14px">Bearbeitung</h2>
+              <div id="tkProg" aria-live="polite"></div>
+            </div>
+            <div class="card">
               <h2 style="margin-bottom:14px">SLA</h2>
-              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Reaktion</span><span class="tag t-ok">eingehalten</span></div>
-              <div class="bar ok" style="margin:10px 0 18px"><i style="width:100%"></i></div>
-              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Lösung</span><span id="tkSla" class="num">2 h 10 min</span></div>
-              <div class="bar warn" style="margin-top:10px"><i style="width:62%"></i></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Reaktion</span><span class="tag" id="tkReact"></span></div>
+              <div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;margin-top:18px"><span>Lösung</span><span id="tkSla" class="num"></span></div>
+              <div class="bar" id="tkSlaBar" style="margin-top:10px"><i style="width:0%"></i></div>
             </div>
             <div class="card">
               <h2 style="margin-bottom:12px">Verknüpft</h2>

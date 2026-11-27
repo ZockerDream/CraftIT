@@ -227,6 +227,9 @@ td .sub{font-size:13px;color:var(--ink2)}
 .pop a,.pop button.item{display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:12px;padding:10px 12px;border-radius:10px;border:0;background:none;text-align:left;text-decoration:none;color:var(--ink);font-size:14px}
 .pop a:hover,.pop button.item:hover{background:var(--surface2)}
 .pop .sub{font-size:13px;color:var(--ink2)}
+.pop button.item.unread{font-weight:650;background:color-mix(in srgb, var(--acc) 8%, transparent)}
+.pop button.item.read{color:var(--ink2)}
+.new-dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--acc);margin-right:8px;vertical-align:1px}
 .pop hr{border:0;border-top:1px solid var(--line);margin:6px 0}
 .overlay{position:fixed;inset:0;background:var(--overlay);display:grid;place-items:center;padding:16px;z-index:100;animation:fade .15s ease-out}
 .modal{background:var(--surface);border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow),0 30px 80px rgba(0,0,0,.25);width:min(560px,100%);max-height:calc(100vh - 32px);display:flex;flex-direction:column;animation:rise .18s ease-out}

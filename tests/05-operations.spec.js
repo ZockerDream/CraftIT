@@ -68,18 +68,51 @@ test('changes counter and CAB notification', async () => {
   await expect(page.locator('#navChanges')).toHaveText(String(pending - 1));
 });
 
-test('notification count matches the list', async () => {
+test('notifications: the badge counts unread items, opening the list marks them read', async () => {
+  await go(page, 'uebersicht');
+  await page.click('#pauseBtn');            // the list must not change while we look
   await page.click('#bellBtn');
   const n = await page.locator('#bellList .item').count();
-  await expect(page.locator('#bellCount')).toHaveText(String(n));
-  await page.keyboard.press('Escape');
+  expect(n).toBeGreaterThan(0);
+  await expect(page.locator('#bellCount')).toBeHidden();
   await page.click('body', { position: { x: 5, y: 880 } });
+  // read items stay in the list, but without the "new" mark
+  await page.click('#bellBtn');
+  await expect(page.locator('#bellList .item')).toHaveCount(n);
+  await expect(page.locator('#bellList .item.unread')).toHaveCount(0);
+  await page.click('body', { position: { x: 5, y: 880 } });
+  // something new comes in: the badge shows exactly that one
+  await page.locator('[data-screen="uebersicht"] [data-act="newticket"]').click();
+  await page.fill('#ntTitle', 'Server im Keller aus');
+  await page.selectOption('#ntImp', '4');
+  await page.selectOption('#ntUrg', '4');
+  await modalAction(page, 'save');
+  // critical and nobody on it yet (time is paused): SLA warning plus "wartet auf Bearbeitung", both new
+  const nid = (await state()).tickets[0].id;
+  await expect(page.locator('#bellCount')).toHaveText('2');
+  await page.click('#bellBtn');
+  const fresh = page.locator('#bellList .item.unread');
+  await expect(fresh).toHaveCount(2);
+  await expect(fresh.nth(0)).toContainText(nid);
+  await expect(fresh.nth(1)).toContainText(nid);
+  await expect(page.locator('#bellList')).toContainText('Server im Keller aus');
+  await expect(page.locator('#bellCount')).toBeHidden();
+  await page.click('body', { position: { x: 5, y: 880 } });
+  // read state is part of the save game
+  expect((await state()).ops.bellRead).toBeTruthy();
+  await page.click('#pauseBtn');
 });
 
 test('SLA clock runs and a breach is reported', async () => {
   let st = await state();
   const major = st.tickets.find(t => t.status === 'Major Incident');
   expect(major.slaMin).toBeGreaterThan(0);
+  // take it yourself, so the team does not solve it in the meantime
+  await go(page, 'tickets');
+  await page.locator('#ticketRows tr', { hasText: major.id }).locator('[data-assign]').click();
+  const self = await page.locator('#asgWho option', { hasText: 'ich selbst' }).getAttribute('value');
+  await page.selectOption('#asgWho', self);
+  await modalAction(page, 'save');
   await page.evaluate(n => window.craftit.advance(n), major.slaMin + 1);
   st = await state();
   const m2 = st.tickets.find(t => t.id === major.id);

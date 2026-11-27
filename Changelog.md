@@ -17,7 +17,11 @@ All notable changes to CraftIT are recorded here. Newest first.
 - Skills matter: tickets name the skill they need; people with a matching skill earn better ratings and less stress, unsuitable assignments cause more stress and worse ratings.
 - New applications arrive every few days (up to three open ones).
 - Notification when an open ticket belongs to someone who is sick or in training.
-- - Tests: new spec `05-operations` (11 tests) for counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM.
+- The team works on its own: free tickets (nobody assigned, or the person is sick or in training) go to the available person with the highest matching skill, most urgent tickets first, up to three open tickets per person. Each person works on their most urgent ticket; skill and energy set the speed. Finished tickets are solved, documented in the history and paid at shift end. Tickets you assign to yourself stay with you.
+- Live progress: the ticket page has a "Bearbeitung" card with the person, a progress bar, the current step (analysis, narrowing down, fix, customer test) and the time left; it updates while you watch. The ticket list shows a small progress bar per ticket. Your own investigation steps speed up the person working on it.
+- Notifications are marked as read when you open the list: the badge counts only unread items, new ones are highlighted. When a problem comes back later it counts as new again.
+- Notification when a ticket waits because nobody in the team has room.
+- Tests: new specs `05-operations` (counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM), `06-staff` and `07-work` (team takes and solves tickets, live progress).
 
 ### Fixed
 
@@ -25,6 +29,7 @@ All notable changes to CraftIT are recorded here. Newest first.
 - Notifications ("Mitteilungen") were fixed mockup entries with a made-up count. They now list SLA breaches, major incidents, tickets close to their SLA, changes waiting for the CAB, sick or stressed staff, overdue invoices, negative cash, and the next payday.
 - Menu counters: the changes counter was fixed at 2. Counters are now badges with spacing (on phones the number stuck to the word), red when a ticket is critical, a major incident or over its SLA, yellow for changes waiting for the CAB, hidden at 0, and readable by screen readers.
 - Finances showed fixed monthly income, costs and loan.
+- The SLA card on the ticket page showed a fixed bar and "eingehalten"; it now follows the ticket.
 - Reports showed fixed satisfaction, SLA rate, workload and resolution times.
 - Creating a ticket raised a script error ("n is not defined").
 - Ticket, change, invoice and cable numbers could repeat after a few shifts.
