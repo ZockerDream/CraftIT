@@ -32,6 +32,7 @@ Browser: public/js/app.js            Server: server/*.js (Express)          data
 - `window.craftit.state()` and `window.craftit.info()` expose a read-only view for the end-to-end tests and the browser console; `window.craftit.advance(n)` runs the game clock n minutes forward.
 - Operations (since 2026-11-27, `app.js` section "Betrieb"): `ops` in the game state holds SLA and satisfaction history, contracts, owner salary, loan, and month income. `opsTick()` runs every game minute (SLA countdown, staff energy), `opsNewDay()` runs at shift end (staff, invoices, changes, maintenance, routines, services, month end). `opsSync()` runs on every render and fills missing fields, so older save games load. Ids come from `nextId(prefix, list)` (highest number + 1).
 - ITSM data (`catalog`, `CI`, `problems`, `kb`) is part of the game state since 2026-11-27.
+- Staff (since 2026-11-27, `app.js` section "Personal"): each person has `skills`, `certs`, `training` ({course, daysLeft}), `trainLog`. `TRAINING` is the course catalogue, `CAT_SKILL` maps ticket categories to skills, `staffNewDay()` runs at shift end (course progress, certificates, new applications).
 - Server files: `index.js` (app, security headers, static files, shutdown), `db.js` (schema and migrations), `auth.js` (passwords, sessions, guards), `api.js` (status, auth, account, saves, admin), `support.js` (support requests, changelog).
 
 Planned later:
@@ -99,7 +100,7 @@ All routes are under `/api`. Every request that changes data needs the header `X
 ## Tests
 
 - `npm test` runs Playwright (`playwright.config.js`). `tests/serve.js` starts the server on port 9152 with an empty `.test-data/` folder.
-- The specs run in order and build on each other: `01-accounts` (setup, login, invite, lock, reset), `02-game` (wizard, tickets, shift, server room, workbench repair, work computer, Active Directory, reload persistence, autosave), `03-platform` (export and import, co-op conflict, settings on the account, profile, support with internal notes, changelog, backup, registration and maintenance mode, account deletion), `04-layout` (every page at 400 and 1400 px, light and dark, no horizontal scroll, no script errors), `05-operations` (counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM).
+- The specs run in order and build on each other: `01-accounts` (setup, login, invite, lock, reset), `02-game` (wizard, tickets, shift, server room, workbench repair, work computer, Active Directory, reload persistence, autosave), `03-platform` (export and import, co-op conflict, settings on the account, profile, support with internal notes, changelog, backup, registration and maintenance mode, account deletion), `04-layout` (every page at 400 and 1400 px, light and dark, no horizontal scroll, no script errors), `05-operations` (counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM), `06-staff` (hiring, assigning new staff, training and certificates).
 - Browser: system Chrome (`channel: 'chrome'`). Set `PW_CHANNEL=` to use the bundled Chromium.
 
 ## Deployment

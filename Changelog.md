@@ -13,7 +13,11 @@ All notable changes to CraftIT are recorded here. Newest first.
 - CMDB: create configuration items; the status follows open tickets of the customer; "Auswirkung prüfen" shows dependent items and affected customers.
 - Problem management: record problems, run a 5-why analysis, document a workaround, request a change, and solve the problem. Solved problems stop new tickets of that kind.
 - Knowledge base: write articles; "Als Wissensartikel vorschlagen" in the resolve dialog creates a draft that can be reviewed and released.
-- Tests: new spec `05-operations` (11 tests) for counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM.
+- Training system: a course catalogue (network, Windows, security, hardware, printers, cloud, customer communication, ITIL 4, stress management) with cost, duration and requirements. The person is away during the course; afterwards the skill rises, a certificate is issued, the level goes up, and each new certificate brings new contract customers (+400 € per month). Book from the staff card or the new "Schulungen" card, which also shows running courses and the team's certificates.
+- Skills matter: tickets name the skill they need; people with a matching skill earn better ratings and less stress, unsuitable assignments cause more stress and worse ratings.
+- New applications arrive every few days (up to three open ones).
+- Notification when an open ticket belongs to someone who is sick or in training.
+- - Tests: new spec `05-operations` (11 tests) for counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM.
 
 ### Fixed
 
@@ -25,6 +29,9 @@ All notable changes to CraftIT are recorded here. Newest first.
 - Creating a ticket raised a script error ("n is not defined").
 - Ticket, change, invoice and cable numbers could repeat after a few shifts.
 - "Bewerber ansehen" did nothing.
+- New staff could not be assigned to tickets: the assign dialog used a fixed list of names from the mockup. It now lists the real team plus yourself, shows the matching skill and load per person, recommends the best fit, and blocks people who are sick or in training.
+- Hired staff got default skills and the application note as their role; they now get the skills from the application.
+- "Schulung buchen" only took money and did nothing else.
 - Your own actions were logged as "Derrik" (audit, Active Directory log, mail, chat); they now show your name.
 - "Gerade eben" in logs and conversations stayed forever; it is now stored as the game time.
 

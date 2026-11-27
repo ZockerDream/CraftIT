@@ -84,11 +84,6 @@ var autos = [
   { id:"a2", name:"Zertifikate erneuern", cost:300, on:false, risk:"Ein abgelaufenes Zertifikat wird ein Incident." },
   { id:"a3", name:"Druckerwarteschlange leeren", cost:120, on:true, risk:"Geringes Risiko." }
 ];
-var COURSES = [
-  { name:"Netzwerk-Grundlagen", cost:600 },
-  { name:"Windows Server", cost:900 },
-  { name:"Security Awareness", cost:300 }
-];
 var milestones = [
   { name:"Erster Kunde mit Support-Vertrag", done:true, unlock:"" },
   { name:"Zweite Mitarbeiterin einstellen", done:false, unlock:"Monitoring" },
@@ -102,7 +97,6 @@ var scenarios = [
 var shiftLog = [];
 var cash = 18420;
 var ops = {};
-var staffList = ["Jonas Keller", "Mira Stein", "Ole Brandt", "Derrik Winchester"];
 var staff = [
   { name:"Jonas Keller", role:"Netzwerk-Admin · Stufe 6", ini:"JK", pay:4200, sickDays:0, energy:78, stress:32, skills:[["Netzwerk",90],["Windows",70],["Hardware",55],["Sicherheit",40]] },
   { name:"Mira Stein", role:"Kundenbetreuung · Stufe 3", ini:"MS", pay:3400, sickDays:0, energy:48, stress:71, skills:[["Kundenkontakt",85],["Dokumentation",60],["Windows",45],["Netzwerk",20]], warn:"Burnout-Warnung" },
@@ -505,24 +499,6 @@ $("#tkInv").addEventListener("click", function(e){
   if (b) investigate(b.getAttribute("data-inv"));
 });
 
-function assignModal(){
-  var t = findTicket();
-  openModal({
-    title: "Ticket zuweisen", sub: t.id + " · " + t.title,
-    body: field("asgWho", "Zuständige Person", '<select class="inp" id="asgWho">' + staffList.map(function(n){ return '<option' + (n === t.who ? ' selected' : '') + '>' + esc(n) + '</option>'; }).join("") + '</select>') +
-      '<div class="hint">Die Auslastung der Person steht unter Personal.</div>',
-    actions: '<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Zuweisen</button>',
-    onAction: function(a, el, close){
-      if (a !== "save") return;
-      var who = $("#asgWho", el).value;
-      t.who = who;
-      if (t.status === "Offen") t.status = "In Arbeit";
-      addThread(t, "staff", who, "Ticket übernommen.");
-      close(); renderAll(); renderTicket();
-      toast("Zugewiesen an " + who + ".", "ok");
-    }
-  });
-}
 function triageModal(){
   var t = findTicket();
   var impOpts = IMPACT.slice(1).map(function(l, i){ return '<option value="' + (i + 1) + '"' + (i + 1 === t.impact ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join("");
@@ -966,23 +942,6 @@ document.addEventListener("click", function(e){
     toast(a.on ? a.name + " ist aktiv. Fehler landen als Incident." : a.name + " ist aus.", a.on ? "ok" : "");
     return;
   }
-  var tr = e.target.closest("[data-act='train']");
-  if (tr){
-    openModal({
-      title: "Schulung buchen", sub: "Schulungen kosten Budget und Zeit. Zertifikate schalten Verträge frei.",
-      body: field("trStaff", "Person", '<select class="inp" id="trStaff">' + staff.map(function(p){ return '<option>' + esc(p.name) + '</option>'; }).join("") + '</select>') +
-        field("trCourse", "Schulung", '<select class="inp" id="trCourse">' + COURSES.map(function(c){ return '<option value="' + c.cost + '">' + esc(c.name) + ' · ' + eur(c.cost) + '</option>'; }).join("") + '</select>'),
-      actions: '<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Buchen</button>',
-      onAction: function(a, el, close){
-        if (a !== "save") return;
-        var cost = +$("#trCourse", el).value, who = $("#trStaff", el).value;
-        if (cash < cost){ toast("Zu wenig Budget für diese Schulung.", "bad"); return; }
-        cash -= cost;
-        renderAll();
-        close(); toast(who + " ist für die Schulung angemeldet.", "ok");
-      }
-    });
-  }
 });
 
 /* ---------- Meilensteine, Szenarien ---------- */
@@ -1069,7 +1028,8 @@ document.addEventListener("click", function(e){
   else if (a === "newproblem") newProblemModal();
   else if (a === "newarticle") newArticleModal();
   else if (a === "newuser-ad") location.hash = "verzeichnis";
-  else if (a === "train" || a === "invite-access" || a === "addhw") { /* handled elsewhere */ }
+  else if (a === "train") trainModal();
+  else if (a === "invite-access" || a === "addhw") { /* handled elsewhere */ }
   else toast("Diese Funktion kommt in einer späteren Version.");
 });
 
@@ -1642,15 +1602,19 @@ function backupRun(){
 /* ---------- Personal ---------- */
 function renderStaff(){
   $("#staffGrid").innerHTML = staff.map(function(s){
-    var tags = s.sickDays > 0 ? '<span class="tag t-mut">Krank, noch ' + s.sickDays + (s.sickDays === 1 ? ' Tag' : ' Tage') + '</span>' :
-      '<span class="tag ' + (s.energy < 50 ? "t-warn" : "t-ok") + '">Energie ' + s.energy + ' %</span> <span class="tag ' + (s.stress > 60 ? "t-bad" : "t-ok") + '">Stress ' + s.stress + ' %</span>';
+    var nT = assignedOpen(s).length;
+    var tags = (inTraining(s) ? '<span class="tag t-info">In Schulung: ' + esc(s.training.name) + ', noch ' + s.training.daysLeft + (s.training.daysLeft === 1 ? ' Tag' : ' Tage') + '</span> ' : '') +
+      (s.sickDays > 0 ? '<span class="tag t-mut">Krank, noch ' + s.sickDays + (s.sickDays === 1 ? ' Tag' : ' Tage') + '</span>' :
+      '<span class="tag ' + (s.energy < 50 ? "t-warn" : "t-ok") + '">Energie ' + s.energy + ' %</span> <span class="tag ' + (s.stress > 60 ? "t-bad" : "t-ok") + '">Stress ' + s.stress + ' %</span> <span class="tag t-mut">' + nT + ' Ticket' + (nT === 1 ? '' : 's') + '</span>');
     return '<article class="card"><div style="display:flex;gap:14px;align-items:center"><span class="mark" style="width:44px;height:44px;border-radius:14px;background:var(--surface2);color:var(--ink)">' + esc(s.ini) + '</span><div style="min-width:0"><div style="font-weight:700;font-size:17px">' + esc(s.name) + '</div><div class="hint">' + esc(s.role) + '</div></div></div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin:18px 0;font-size:14px">' +
       s.skills.map(function(k){ return '<div>' + k[0] + '<div class="bar" style="margin-top:6px"><i style="width:' + k[1] + '%"></i></div></div>'; }).join("") + '</div>' +
       '<div style="display:flex;gap:6px;flex-wrap:wrap">' + tags + '</div>' +
-      (s.warn ? '<p class="hint" style="margin-top:12px">' + esc(s.warn) + '</p>' : '') + '</article>';
+      ((s.certs || []).length ? '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px">' + s.certs.map(function(c){ return '<span class="tag t-acc">' + esc(c) + '</span>'; }).join("") + '</div>' : '') +
+      (s.warn && s.stress >= 60 ? '<p class="hint" style="margin-top:12px">' + esc(s.warn) + '</p>' : '') +
+      '<div class="acts" style="margin-top:14px"><button class="btn btn-s btn-sm" type="button" data-train-staff="' + esc(s.name) + '"' + (available(s) ? '' : ' disabled') + '>Schulung buchen</button></div></article>';
   }).join("");
-  $("#candCount").textContent = candidates.length + " Kandidaten";
+  $("#candCount").textContent = candidates.length === 1 ? "1 Kandidat" : candidates.length + " Kandidaten";
   $("#candList").innerHTML = candidates.length ? candidates.map(function(c){
     return '<div class="li"><div class="main-t"><div style="font-weight:650">' + esc(c.name) + '</div><div class="sub muted" style="font-size:13px">' + esc(c.skills) + ' · ' + eur(c.pay) + ' · ' + esc(c.note) + '</div></div><button class="btn btn-s btn-sm" type="button" data-hire="' + c.id + '">Einstellen</button></div>';
   }).join("") : '<p class="hint">Keine offenen Bewerbungen.</p>';
@@ -1661,8 +1625,8 @@ $("#candList").addEventListener("click", function(e){
   var c = candidates.filter(function(x){ return x.id === b.getAttribute("data-hire"); })[0];
   confirmModal("Einstellen?", esc(c.name) + " bekommt " + eur(c.pay) + " im Monat. Die Gehaltszahlung läuft ab dem nächsten Monat.", "Einstellen", "", function(){
     candidates = candidates.filter(function(x){ return x.id !== c.id; });
-    staff.push({ name:c.name, pay:c.pay, sickDays:0, role:c.note, ini:c.name.split(" ").map(function(p){ return p[0]; }).join("").slice(0,2), energy:80, stress:30, skills:[["Netzwerk",60],["Windows",50],["Hardware",40],["Sicherheit",30]] });
-    renderStaff(); toast(c.name + " ist eingestellt.", "ok");
+    staff.push(hireFromCandidate(c));
+    renderAll(); toast(c.name + " ist eingestellt.", "ok");
   });
 });
 
@@ -4825,6 +4789,197 @@ function renderAD(){
 })();
 
 function me(){ return P.user ? P.user.display : "Du"; }
+/* ---------- Personal: Zuweisung nach Skills, Schulungen, Bewerber ---------- */
+// Which skill a ticket category needs.
+var CAT_SKILL = { "Netzwerk":"Netzwerk", "Drucken":"Drucker", "Hardware":"Hardware", "Datenwiederherstellung":"Hardware", "Konten und Zugriff":"Windows",
+  "E-Mail":"Windows", "Software":"Windows", "Cloud":"Cloud", "Sicherheit":"Sicherheit", "Sonstiges":"Kundenkontakt" };
+var TRAINING = [
+  { id:"net1", name:"Netzwerk-Grundlagen", skill:"Netzwerk", gain:15, days:2, cost:600, cert:"Netzwerk-Grundlagen" },
+  { id:"net2", name:"Netzwerk-Profi", skill:"Netzwerk", gain:15, days:4, cost:1400, req:60, cert:"Netzwerk-Profi" },
+  { id:"win1", name:"Windows Server", skill:"Windows", gain:15, days:3, cost:900, cert:"Windows Server" },
+  { id:"sec1", name:"Security Awareness", skill:"Sicherheit", gain:10, days:1, cost:300, cert:"Security Awareness" },
+  { id:"sec2", name:"Sicherheit für Fortgeschrittene", skill:"Sicherheit", gain:15, days:3, cost:1500, req:50, cert:"Security Analyst" },
+  { id:"hw1", name:"Hardware-Reparatur", skill:"Hardware", gain:15, days:2, cost:700, cert:"Hardware-Techniker" },
+  { id:"prn1", name:"Drucker und Peripherie", skill:"Drucker", gain:15, days:1, cost:400, cert:null },
+  { id:"cl1", name:"Cloud-Grundlagen", skill:"Cloud", gain:15, days:2, cost:800, cert:"Cloud Foundation" },
+  { id:"cx1", name:"Kundenkommunikation", skill:"Kundenkontakt", gain:15, days:1, cost:350, cert:null },
+  { id:"itil", name:"ITIL 4 Foundation", skill:"Dokumentation", gain:10, days:3, cost:1200, cert:"ITIL 4 Foundation" },
+  { id:"calm", name:"Stressmanagement", skill:null, gain:0, days:1, cost:250, cert:null, stress:-30 }
+];
+var CERT_BONUS = 400;   // monthly contract income per new certificate
+var APPLICANTS = [
+  { name:"Lea Fischer", skills:[["Netzwerk",5],["Windows",4]], pay:3200, note:"Zertifikat Netzwerk-Grundlagen", role:"Netzwerk-Admin" },
+  { name:"Kemal Yildiz", skills:[["Cloud",3],["Sicherheit",4]], pay:3600, note:"Hohe Stressresistenz", role:"Cloud und Sicherheit" },
+  { name:"Svenja Marx", skills:[["Hardware",4],["Drucker",5]], pay:3000, note:"Erfahrung im Vor-Ort-Service", role:"Hardware-Technikerin" },
+  { name:"Tim Albers", skills:[["Kundenkontakt",5],["Dokumentation",4]], pay:2800, note:"Ruhig am Telefon", role:"Service Desk" },
+  { name:"Ayla Demir", skills:[["Windows",5],["Sicherheit",3]], pay:3500, note:"Erfahrung mit Domänen", role:"Systemadministratorin" },
+  { name:"Jonas Brück", skills:[["Netzwerk",3],["Hardware",3]], pay:2700, note:"Berufseinsteiger, lernt schnell", role:"Junior-Techniker" },
+  { name:"Nora Kranz", skills:[["Cloud",5],["Windows",4]], pay:3900, note:"Zertifikat Cloud Foundation", role:"Cloud-Administratorin" },
+  { name:"Paul Reimers", skills:[["Drucker",4],["Kundenkontakt",4]], pay:2900, note:"Kennt viele Kunden aus der Region", role:"Service-Techniker" }
+];
+
+function skillOf(s, name){ var k = (s.skills || []).filter(function(x){ return x[0] === name; })[0]; return k ? k[1] : 20; }
+function ticketSkill(t){ return CAT_SKILL[t.cat] || "Kundenkontakt"; }
+function inTraining(s){ return !!(s.training && s.training.daysLeft > 0); }
+function available(s){ return !(s.sickDays > 0) && !inTraining(s); }
+function staffByName(n){ return staff.filter(function(s){ return s.name === n; })[0] || null; }
+function staffSync(){
+  staff.forEach(function(s){
+    if (!s.certs) s.certs = [];
+    if (!s.trainLog) s.trainLog = [];
+    if (s.training && !(s.training.daysLeft > 0)) s.training = null;
+  });
+}
+
+/* Zuweisen */
+function assignModal(){
+  var t = findTicket(), sk = ticketSkill(t);
+  var opts = staff.map(function(s){
+    var n = assignedOpen(s).filter(function(x){ return x.id !== t.id; }).length, ok = available(s);
+    return { name:s.name, ok:ok, score:ok ? skillOf(s, sk) - n * 12 : -999, label:s.name + " · " + sk + " " + skillOf(s, sk) + " % · " + n + " Ticket" + (n === 1 ? "" : "s") + (s.sickDays > 0 ? " · krank" : inTraining(s) ? " · in Schulung" : "") };
+  });
+  var best = opts.filter(function(o){ return o.ok; }).sort(function(a, b){ return b.score - a.score; })[0];
+  var cur = t.who && t.who !== "—" ? t.who : (best ? best.name : me());
+  var list = opts.concat([{ name:me(), ok:true, label:me() + " (ich selbst)" }]);
+  openModal({
+    title:"Ticket zuweisen", sub:t.id + " · " + t.title + " · braucht " + sk,
+    body:field("asgWho", "Zuständige Person", '<select class="inp" id="asgWho">' + list.map(function(o){ return '<option value="' + esc(o.name) + '"' + (o.name === cur ? ' selected' : '') + (o.ok ? '' : ' disabled') + '>' + esc(o.label) + '</option>'; }).join("") + '</select>',
+      null, best ? "Empfehlung: " + best.name + " (passender Skill, wenig Last). Passende Leute lösen zufriedener und mit weniger Stress." : "Gerade ist niemand aus dem Team verfügbar.") +
+      '<div id="asgInfo"></div>',
+    init:function(el){
+      var sel = $("#asgWho", el), info = $("#asgInfo", el);
+      var show = function(){
+        var s = staffByName(sel.value);
+        info.innerHTML = s ? '<div class="note ' + (skillOf(s, sk) >= 70 ? 'ok' : skillOf(s, sk) >= 40 ? 'info' : 'warn') + '">' + esc(s.name) + ': ' + esc(sk) + ' ' + skillOf(s, sk) + ' %, Energie ' + s.energy + ' %, Stress ' + s.stress + ' %.' + (skillOf(s, sk) < 40 ? ' Fachfremd: mehr Stress, schlechtere Bewertung.' : '') + '</div>' : '';
+      };
+      sel.addEventListener("change", show); show();
+    },
+    actions:'<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Zuweisen</button>',
+    onAction:function(a, el, close){
+      if (a !== "save") return;
+      var who = $("#asgWho", el).value, s = staffByName(who);
+      if (s && !available(s)) { $("#asgWhoErr", el).textContent = s.name + " ist gerade nicht verfügbar."; return; }
+      t.who = who;
+      if (t.status === "Offen") t.status = "In Arbeit";
+      addThread(t, "staff", who, "Ticket übernommen.");
+      close(); renderAll(); renderTicket();
+      toast("Zugewiesen an " + who + ".", "ok");
+    }
+  });
+}
+
+/* Schulungen */
+function courseBlock(s, c){
+  if (inTraining(s)) return "ist schon in einer Schulung";
+  if (s.sickDays > 0) return "ist krank";
+  if (c.req && skillOf(s, c.skill) < c.req) return "braucht " + c.skill + " " + c.req + " %";
+  if (c.skill && skillOf(s, c.skill) >= 100) return "kann das schon";
+  if (c.skill && !c.req && skillOf(s, c.skill) >= 80) return "braucht den Grundkurs nicht mehr";
+  if (c.cert && s.certs.indexOf(c.cert) >= 0) return "hat das Zertifikat schon";
+  return "";
+}
+function trainModal(who){
+  staffSync();
+  if (!staff.length) { toast("Du hast noch kein Personal.", "bad"); return; }
+  var sel = who || (staff.filter(available)[0] || staff[0]).name;
+  openModal({
+    title:"Schulung buchen", sub:"Während der Schulung fällt die Person aus. Danach steigt der Skill; Zertifikate bringen neue Vertragskunden.", wide:true,
+    body:field("trStaff", "Person", '<select class="inp" id="trStaff">' + staff.map(function(p){ return '<option' + (p.name === sel ? ' selected' : '') + '>' + esc(p.name) + '</option>'; }).join("") + '</select>') +
+      '<div id="trCourses" class="list" style="gap:0"></div><div class="err" id="trErr"></div>',
+    init:function(el){
+      var draw = function(){
+        var s = staffByName($("#trStaff", el).value);
+        $("#trCourses", el).innerHTML = TRAINING.map(function(c){
+          var block = courseBlock(s, c), poor = !block && cash < c.cost;
+          return '<label class="li" style="gap:12px;padding:10px 4px;cursor:' + (block ? 'not-allowed' : 'pointer') + ';opacity:' + (block ? .55 : 1) + '"><span style="display:flex;gap:10px;align-items:flex-start;min-width:0"><input type="radio" name="trC" value="' + c.id + '"' + (block ? ' disabled' : '') + ' style="margin-top:4px"><span class="main-t"><span style="font-weight:650;display:block">' + esc(c.name) + '</span><span class="sub muted" style="font-size:13px">' +
+            (c.skill ? esc(c.skill) + ' von ' + skillOf(s, c.skill) + ' auf ' + Math.min(100, skillOf(s, c.skill) + c.gain) + ' %' : 'senkt Stress um ' + (-c.stress) + ' Punkte') + ' · ' + c.days + (c.days === 1 ? ' Tag' : ' Tage') + (c.cert ? ' · Zertifikat „' + esc(c.cert) + '“' : '') + (block ? ' · ' + esc(block) : '') + '</span></span></span><span class="tag ' + (poor ? 't-bad' : 't-mut') + '">' + eur(c.cost) + '</span></label>';
+        }).join("");
+      };
+      $("#trStaff", el).addEventListener("change", draw); draw();
+    },
+    actions:'<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Buchen</button>',
+    onAction:function(a, el, close){
+      if (a !== "save") return;
+      var s = staffByName($("#trStaff", el).value), r = el.querySelector('input[name="trC"]:checked');
+      if (!r) { $("#trErr", el).textContent = "Bitte eine Schulung wählen."; return; }
+      var c = TRAINING.filter(function(x){ return x.id === r.value; })[0], block = courseBlock(s, c);
+      if (block) { $("#trErr", el).textContent = s.name + " " + block + "."; return; }
+      if (cash < c.cost) { $("#trErr", el).textContent = "Zu wenig Geld: Die Schulung kostet " + eur(c.cost) + "."; return; }
+      cash -= c.cost;
+      s.training = { course:c.id, name:c.name, daysLeft:c.days, days:c.days };
+      var moved = assignedOpen(s).length;
+      audit.unshift({ t:"Gerade eben", who:me(), what:"Schulung gebucht: " + c.name + " für " + s.name, ref:eur(c.cost) });
+      close(); renderAll();
+      toast(s.name + " ist " + c.days + (c.days === 1 ? " Tag" : " Tage") + " in der Schulung „" + c.name + "“." + (moved ? " " + moved + " offene Tickets brauchen jemand anderen." : ""), "ok");
+    }
+  });
+}
+// At shift end: training progress, certificates, new applicants. Returns lines for the shift report.
+function staffNewDay(){
+  var ev = [];
+  staff.forEach(function(s){
+    if (!inTraining(s)) return;
+    s.training.daysLeft--;
+    if (s.training.daysLeft > 0) return;
+    var c = TRAINING.filter(function(x){ return x.id === s.training.course; })[0];
+    s.training = null;
+    if (!c) return;
+    if (c.skill) {
+      var k = (s.skills.filter(function(x){ return x[0] === c.skill; })[0]);
+      if (!k) { k = [c.skill, 20]; s.skills.push(k); }
+      k[1] = Math.min(100, k[1] + c.gain);
+    }
+    if (c.stress) s.stress = Math.max(0, s.stress + c.stress);
+    s.energy = Math.min(100, s.energy + 10);
+    s.trainLog.push({ day:day, course:c.name });
+    var line = s.name + " hat „" + c.name + "“ abgeschlossen" + (c.skill ? ": " + c.skill + " " + skillOf(s, c.skill) + " %" : "");
+    if (c.cert && s.certs.indexOf(c.cert) < 0) {
+      s.certs.push(c.cert); ops.contracts += CERT_BONUS;
+      s.role = String(s.role).replace(/Stufe (\d+)/, function(m, n){ return "Stufe " + (+n + 1); });
+      line += ". Zertifikat „" + c.cert + "“: neue Vertragskunden, +" + eur(CERT_BONUS) + " im Monat";
+    }
+    ev.push([line, "Schulung", "t-ok"]);
+  });
+  // a new application every few days, up to three open ones
+  if (candidates.length < 3 && rnd("apply" + day) < 0.35) {
+    var taken = staff.map(function(s){ return s.name; }).concat(candidates.map(function(c){ return c.name; }));
+    var free = APPLICANTS.filter(function(a){ return taken.indexOf(a.name) < 0; });
+    if (free.length) {
+      var a = free[Math.floor(rnd("who" + day) * free.length)];
+      candidates.push({ id:"c" + day + "-" + candidates.length, name:a.name, skills:a.skills.map(function(k){ return k[0] + " " + k[1]; }).join(" · "), pay:a.pay, note:a.note });
+      ev.push(["Neue Bewerbung: " + a.name, "Personal", "t-info"]);
+    }
+  }
+  return ev;
+}
+// Turn an application into a staff member with the skills from the application.
+function hireFromCandidate(c){
+  var known = APPLICANTS.filter(function(a){ return a.name === c.name; })[0];
+  var sk = {};
+  String(c.skills).split("·").forEach(function(p){ var m = /([A-Za-zÄÖÜäöü]+)\s+(\d)/.exec(p.trim()); if (m) sk[m[1]] = Math.min(95, +m[2] * 18); });
+  ["Netzwerk", "Windows", "Hardware", "Sicherheit"].forEach(function(k){ if (sk[k] == null) sk[k] = 25; });
+  return { name:c.name, pay:c.pay, sickDays:0, role:(known ? known.role : "Techniker/in") + " · Stufe 1", ini:c.name.split(" ").map(function(p){ return p[0]; }).join("").slice(0, 2),
+    energy:85, stress:20, skills:Object.keys(sk).map(function(k){ return [k, sk[k]]; }).sort(function(a, b){ return b[1] - a[1]; }).slice(0, 4), certs:[], trainLog:[], training:null };
+}
+function renderTraining(){
+  var el = $("#trainBody"); if (!el) return;
+  staffSync();
+  var act = staff.filter(inTraining);
+  var certs = [];
+  staff.forEach(function(s){ s.certs.forEach(function(c){ certs.push([s.name, c]); }); });
+  el.innerHTML = '<div class="grid g2" style="gap:16px">' +
+    '<div><h3 style="margin-bottom:8px">Laufende Schulungen</h3>' + (act.length ? '<div class="list">' + act.map(function(s){
+      var p = Math.round((s.training.days - s.training.daysLeft) / s.training.days * 100);
+      return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600;gap:8px"><span>' + esc(s.name) + ' · ' + esc(s.training.name) + '</span><span class="num">noch ' + s.training.daysLeft + (s.training.daysLeft === 1 ? ' Tag' : ' Tage') + '</span></div><div class="bar" style="margin-top:6px"><i style="width:' + Math.max(6, p) + '%"></i></div></div>';
+    }).join("") + '</div>' : '<p class="hint">Niemand ist gerade in einer Schulung.</p>') + '</div>' +
+    '<div><h3 style="margin-bottom:8px">Zertifikate im Team</h3>' + (certs.length ? '<div style="display:flex;gap:6px;flex-wrap:wrap">' + certs.map(function(c){ return '<span class="tag t-acc" title="' + esc(c[0]) + '">' + esc(c[1]) + ' · ' + esc(c[0].split(" ")[0]) + '</span>'; }).join("") + '</div><p class="hint" style="margin-top:8px">Jedes neue Zertifikat bringt Vertragskunden: +' + eur(CERT_BONUS) + ' im Monat.</p>' : '<p class="hint">Noch keine Zertifikate. Jedes bringt neue Vertragskunden (+' + eur(CERT_BONUS) + ' im Monat).</p>') + '</div>' +
+    '</div>';
+}
+document.addEventListener("click", function(e){
+  var b = e.target.closest("[data-train-staff]");
+  if (b) trainModal(b.getAttribute("data-train-staff"));
+});
+
 /* ---------- Betrieb: SLA-Uhr, Tagesabschluss, Kennzahlen, Mitteilungen ---------- */
 // Next free id for a prefix, e.g. nextId("T-", tickets) -> "T-1042". Never reuses a number.
 function nextId(prefix, list){
@@ -4895,6 +5050,8 @@ function opsSync(){
       var ok = !t.breached;
       if (ok) ops.slaMet++; else ops.slaBreached++;
       var stars = !ok ? 2 : t.slaMin >= slaFor(t.prio) / 2 ? 5 : 4;
+      var by = staffByName(t.who), fit = by ? skillOf(by, ticketSkill(t)) : 60;
+      if (fit < 40) stars = Math.max(1, stars - 1); else if (fit >= 80 && ok) stars = 5;
       ops.satSum += stars; ops.satN++;
       var c = ops.catSat[t.cat] || (ops.catSat[t.cat] = [0, 0]); c[0] += stars; c[1]++;
       var r = ops.resolveLog[t.prio] || (ops.resolveLog[t.prio] = [0, 0]); r[0] += Math.max(1, now - t.openedAt); r[1]++;
@@ -4929,7 +5086,7 @@ function satScore(){ return ops.satN ? ops.satSum / ops.satN : null; }
 function slaPct(){ var n = ops.slaMet + ops.slaBreached; return n ? Math.round(ops.slaMet / n * 100) : "–"; }
 function staffLoad(s){ return Math.min(100, Math.round(assignedOpen(s).length * 25 + (100 - s.energy) / 2)); }
 function teamLoad(){
-  var w = staff.filter(function(s){ return !(s.sickDays > 0); });
+  var w = staff.filter(available);
   return w.length ? Math.round(w.reduce(function(a, s){ return a + staffLoad(s); }, 0) / w.length) : 0;
 }
 function avgResolve(prio){ var r = ops.resolveLog[prio]; return r && r[1] ? Math.round(r[0] / r[1]) : 0; }
@@ -4945,7 +5102,7 @@ function opsTick(){
     else if (t.slaMin === 15) toast("SLA läuft in 15 Minuten ab: " + t.id + " " + t.title + ".", "bad");
   });
   if (minutes % 30 === 0) staff.forEach(function(s){
-    if (s.sickDays > 0) return;
+    if (!available(s)) return;
     var n = assignedOpen(s).length;
     if (n) { s.energy = Math.max(5, s.energy - n); if (n > 2) s.stress = Math.min(100, s.stress + 1); }
   });
@@ -4961,8 +5118,9 @@ function renderLive(){
 
 // Called by "Schicht beenden" after the day has moved on. Returns lines for the shift report.
 function opsNewDay(){
-  var ev = [];
+  var ev = staffNewDay();
   staff.forEach(function(s){
+    if (inTraining(s)) { s.energy = Math.min(100, s.energy + 15); s.stress = Math.max(0, s.stress - 5); return; }
     if (s.sickDays > 0) {
       s.sickDays--;
       if (s.sickDays === 0) { s.energy = 70; s.stress = 30; ev.push([s.name + " ist wieder gesund.", "Personal", "t-ok"]); }
@@ -4970,7 +5128,9 @@ function opsNewDay(){
     }
     var n = assignedOpen(s).length;
     s.energy = Math.max(5, Math.min(100, s.energy + 30 - n * 5));
-    s.stress = Math.max(0, Math.min(100, s.stress + n * 6 - 12));
+    // fachfremde Tickets stressen mehr
+    var load = assignedOpen(s).reduce(function(a, t){ var k = skillOf(s, ticketSkill(t)); return a + (k >= 70 ? 4 : k >= 40 ? 6 : 12); }, 0);
+    s.stress = Math.max(0, Math.min(100, s.stress + load - 12));
     if (s.stress >= 85 && rnd(day + s.name) < 0.5) {
       s.sickDays = 2; s.energy = 0;
       ev.push([s.name + " meldet sich krank (2 Tage). Zu viel Stress.", "Personal", "t-bad"]);
@@ -5056,7 +5216,14 @@ function bellItems(){
   staff.filter(function(s){ return s.sickDays > 0; }).forEach(function(s){
     it.push({ go:"personal", t:s.name + " ist krank", s:"noch " + s.sickDays + (s.sickDays === 1 ? " Tag" : " Tage") + " · Vertretung planen", tag:"Personal", cls:"t-mut", w:4 });
   });
-  staff.filter(function(s){ return !(s.sickDays > 0) && s.stress >= 75; }).forEach(function(s){
+  tickets.filter(isOpen).forEach(function(t){
+    var p = staffByName(t.who);
+    if (p && !available(p)) it.push({ open:t.id, t:t.id + " ohne Bearbeitung", s:p.name + " ist " + (p.sickDays > 0 ? "krank" : "in Schulung") + " · neu zuweisen", tag:"Zuweisen", cls:"t-warn", w:2 });
+  });
+  staff.filter(inTraining).forEach(function(s){
+    if (s.training.daysLeft === 1) it.push({ go:"personal", t:s.name + " beendet morgen „" + s.training.name + "“", s:"nach dem nächsten Schichtende wieder da", tag:"Schulung", cls:"t-info", w:6 });
+  });
+  staff.filter(function(s){ return available(s) && s.stress >= 75; }).forEach(function(s){
     it.push({ go:"personal", t:s.name + " ist stark gestresst", s:"Stress " + s.stress + " % · Tickets umverteilen", tag:"Personal", cls:"t-warn", w:4 });
   });
   invoices.filter(function(i){ return i.status === "überfällig"; }).forEach(function(i){
@@ -5105,7 +5272,7 @@ function renderOverviewKpis(open){
   // Team
   $("#ovTeamN").textContent = staff.length + (staff.length === 1 ? " Mitarbeitende/r" : " Mitarbeitende");
   $("#ovTeam").innerHTML = staff.map(function(s){
-    if (s.sickDays > 0) return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + esc(s.name) + '</span><span class="num">krank</span></div><div class="bar bad" style="margin-top:6px"><i style="width:100%"></i></div></div>';
+    if (!available(s)) return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + esc(s.name) + '</span><span class="num">' + (s.sickDays > 0 ? 'krank' : 'Schulung') + '</span></div><div class="bar ' + (s.sickDays > 0 ? 'bad' : '') + '" style="margin-top:6px"><i style="width:100%"></i></div></div>';
     var l = staffLoad(s), n = assignedOpen(s).length;
     return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + esc(s.name) + ' <span class="sub muted" style="font-weight:500">· ' + n + ' Ticket' + (n === 1 ? '' : 's') + '</span></span><span class="num">' + l + ' %</span></div><div class="bar ' + (l >= 85 ? "bad" : l >= 65 ? "warn" : "") + '" style="margin-top:6px"><i style="width:' + l + '%"></i></div></div>';
   }).join("");
@@ -5123,7 +5290,8 @@ function renderFinance(){
 
 /* ---------- Gesamt-Render ---------- */
 function renderAll(){
-  opsSync();
+  opsSync(); staffSync();
+  renderTraining();
   renderCatalog(); renderCMDB(); renderProblems(); renderKbList();
   renderHome(); renderTickets(); renderChanges(); renderUsers(); renderInvoices();
   renderSaves(); renderStaff(); renderPrices(); renderServerroom();
