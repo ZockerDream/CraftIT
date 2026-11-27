@@ -18,7 +18,7 @@
     <nav class="nav-g" aria-label="Betrieb" data-game>
       <div class="grp">Betrieb</div>
       <a href="#uebersicht" data-nav="uebersicht">Übersicht</a>
-      <a href="#tickets" data-nav="tickets">Tickets <span class="cnt" id="navTickets">3</span></a>
+      <a href="#tickets" data-nav="tickets">Tickets <span class="cnt" id="navTickets" hidden>0</span></a>
       <a href="#serverraum" data-nav="serverraum">Serverraum</a>
       <a href="#personal" data-nav="personal">Personal</a>
       <a href="#finanzen" data-nav="finanzen">Finanzen</a>
@@ -32,7 +32,7 @@
     <nav class="nav-g" aria-label="ITSM" data-game>
       <div class="grp">ITSM</div>
       <a href="#katalog" data-nav="katalog">Service-Katalog</a>
-      <a href="#changes" data-nav="changes">Changes <span class="cnt">2</span></a>
+      <a href="#changes" data-nav="changes">Changes <span class="cnt" id="navChanges" hidden>0</span></a>
       <a href="#cmdb" data-nav="cmdb">CMDB</a>
       <a href="#probleme" data-nav="probleme">Probleme</a>
       <a href="#wissen" data-nav="wissen">Wissen</a>
@@ -70,12 +70,10 @@
         <span class="clock" id="clock" data-game>Tag <b>42</b> · <b>14:20</b></span>
         <button class="ib" id="pauseBtn" type="button" aria-pressed="false" data-game>Pause</button>
         <div class="pop-w" data-game>
-          <button class="ib" id="bellBtn" type="button" aria-haspopup="true" aria-expanded="false">Mitteilungen <span class="dot-n" id="bellCount">3</span></button>
+          <button class="ib" id="bellBtn" type="button" aria-haspopup="true" aria-expanded="false">Mitteilungen <span class="dot-n" id="bellCount" hidden>0</span></button>
           <div class="pop" id="bellPop" hidden role="menu">
             <div style="padding:6px 12px 8px;font-weight:700">Mitteilungen</div>
-            <button class="item" type="button" data-go="tickets"><span>Major Incident: Netzwerk-Ausfall Lager<br><span class="sub">T-1033 · SLA läuft in 28 min</span></span><span class="tag t-bad">Kritisch</span></button>
-            <button class="item" type="button" data-go="changes"><span>CHG-206 wartet auf das CAB<br><span class="sub">Notfall-Change · Hohes Risiko</span></span><span class="tag t-warn">CAB</span></button>
-            <button class="item" type="button" data-go="personal"><span>Ole Brandt ist krank bis Donnerstag<br><span class="sub">Vertretung planen</span></span><span class="tag t-mut">Personal</span></button>
+            <div id="bellList"></div>
           </div>
         </div>
         <div class="pop-w">
@@ -190,10 +188,10 @@
           <div class="acts"><button class="btn btn-s" type="button" data-act="shift" id="shiftBtn">Schicht beenden</button><button class="btn btn-s" type="button" data-go="tickets">Tickets öffnen</button><button class="btn" type="button" data-act="newticket">Neues Ticket</button></div>
         </div>
         <div class="grid g4">
-          <div class="card kpi"><div class="l">Kasse</div><div class="v">18.420 €</div><div class="s">Reichweite ca. 5 Monate</div></div>
-          <div class="card kpi"><div class="l">Offene Tickets</div><div class="v" id="kpiOpen">3</div><div class="s">1 Major Incident</div></div>
-          <div class="card kpi"><div class="l">SLA eingehalten</div><div class="v" style="color:var(--ok)">94 %</div><div class="s">letzte 7 Tage</div></div>
-          <div class="card kpi"><div class="l">Zufriedenheit</div><div class="v">4,2</div><div class="s">von 5 Sternen</div></div>
+          <div class="card kpi"><div class="l">Kasse</div><div class="v" id="ovCash">0 €</div><div class="s" id="ovCashS"></div></div>
+          <div class="card kpi"><div class="l">Offene Tickets</div><div class="v" id="kpiOpen">0</div><div class="s" id="ovMajor"></div></div>
+          <div class="card kpi"><div class="l">SLA eingehalten</div><div class="v" id="ovSla">–</div><div class="s" id="ovSlaS"></div></div>
+          <div class="card kpi"><div class="l">Zufriedenheit</div><div class="v" id="ovSat">–</div><div class="s">von 5 Sternen</div></div>
         </div>
         <div class="grid g2">
           <div class="card">
@@ -202,20 +200,12 @@
           </div>
           <div class="stack">
             <div class="card">
-              <div class="card-h"><h2>Heute</h2></div>
-              <div class="list">
-                <div class="li"><div class="main-t"><div style="font-weight:650">Change CHG-204 umsetzen</div><div class="sub muted" style="font-size:13px">Firewall-Regel, 16:00</div></div><span class="tag t-acc">Change</span></div>
-                <div class="li"><div class="main-t"><div style="font-weight:650">Server-Backup prüfen</div><div class="sub muted" style="font-size:13px">Letzte Sicherung 03:00</div></div><span class="tag t-ok">OK</span></div>
-                <div class="li"><div class="main-t"><div style="font-weight:650">Gehaltszahlungen</div><div class="sub muted" style="font-size:13px">Fällig am 1. des Monats</div></div><span class="tag t-mut">14.200 €</span></div>
-              </div>
+              <div class="card-h"><h2>Heute</h2><span class="muted" style="font-size:13px" id="ovTodayN"></span></div>
+              <div class="list" id="ovToday"></div>
             </div>
             <div class="card">
-              <div class="card-h"><h2>Team-Auslastung</h2><span class="muted" style="font-size:13px">4 Mitarbeitende</span></div>
-              <div class="list" style="gap:14px">
-                <div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Jonas Keller</span><span class="num">90 %</span></div><div class="bar" style="margin-top:6px"><i style="width:90%"></i></div></div>
-                <div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Mira Stein</span><span class="num">71 %</span></div><div class="bar warn" style="margin-top:6px"><i style="width:71%"></i></div></div>
-                <div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>Ole Brandt</span><span class="num">krank</span></div><div class="bar bad" style="margin-top:6px"><i style="width:100%"></i></div></div>
-              </div>
+              <div class="card-h"><h2>Team-Auslastung</h2><span class="muted" style="font-size:13px" id="ovTeamN"></span></div>
+              <div class="list" style="gap:14px" id="ovTeam"></div>
             </div>
           </div>
         </div>
@@ -310,14 +300,7 @@
           <div><div class="eyebrow">ITSM · Service-Katalog</div><h1>Services</h1></div>
           <div class="acts"><button class="btn" type="button" data-act="newservice">Service anlegen</button></div>
         </div>
-        <div class="grid g3">
-          <div class="card"><div class="card-h"><h3>Arbeitsplatz-Einrichtung</h3><span class="tag t-ok">Standard</span></div><p class="muted">Neues Gerät, Software und Konto für einen Mitarbeitenden.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>1 Tag</dd><dt>Preis</dt><dd>180 €</dd></div></div>
-          <div class="card"><div class="card-h"><h3>Störungsbehebung</h3><span class="tag t-info">Incident</span></div><p class="muted">Ausfälle melden, eingrenzen und wiederherstellen.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>4 h Reaktion</dd><dt>Preis</dt><dd>je Einsatz</dd></div></div>
-          <div class="card"><div class="card-h"><h3>Netzwerk-Wartung</h3><span class="tag t-warn">Change</span></div><p class="muted">Geplante Arbeiten an Router, Switch und WLAN.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>Normal-Change</dd><dt>Preis</dt><dd>Support-Vertrag</dd></div></div>
-          <div class="card"><div class="card-h"><h3>Passwort zurücksetzen</h3><span class="tag t-ok">Standard</span></div><p class="muted">Konto entsperren und neues Passwort setzen.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>1 h</dd><dt>Preis</dt><dd>25 €</dd></div></div>
-          <div class="card"><div class="card-h"><h3>Serverwartung</h3><span class="tag t-warn">Change</span></div><p class="muted">Updates, Backups und Speicherpflege auf dem Server.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>Wartungsfenster</dd><dt>Preis</dt><dd>Vertrag</dd></div></div>
-          <div class="card"><div class="card-h"><h3>Datenwiederherstellung</h3><span class="tag t-bad">Hoch</span></div><p class="muted">Dateien aus Backups zurückholen. Dringend bei Ransomware.</p><div class="kv" style="margin-top:14px"><dt>SLA</dt><dd>2 h</dd><dt>Preis</dt><dd>420 €</dd></div></div>
-        </div>
+        <div class="grid g3" id="catGrid"></div>
       </section>
 
       <!-- CHANGES -->
@@ -357,12 +340,7 @@
           <div class="tw">
             <table>
               <thead><tr><th>Konfigurationseinheit</th><th>Typ</th><th>Kunde</th><th>Status</th></tr></thead>
-              <tbody>
-                <tr class="click" data-ci="HP-Empfang"><td>HP-Empfang</td><td>Drucker</td><td>Bäckerei Krumm</td><td><span class="tag t-bad">Offline</span></td></tr>
-                <tr class="click" data-ci="Router-Lager"><td>Router-Lager</td><td>Netzwerk</td><td>Logistik Weidner</td><td><span class="tag t-warn">Warnung</span></td></tr>
-                <tr class="click" data-ci="NAS-Büro"><td>NAS-Büro</td><td>Speicher</td><td>Steuerbüro Hahn</td><td><span class="tag t-ok">OK</span></td></tr>
-                <tr class="click" data-ci="Lizenz Office"><td>Lizenz Office 365</td><td>Lizenz</td><td>Steuerbüro Hahn</td><td><span class="tag t-mut">läuft ab in 30 Tagen</span></td></tr>
-              </tbody>
+              <tbody id="ciRows"></tbody>
             </table>
           </div>
           <div class="card" id="ciDetail"></div>
@@ -377,24 +355,10 @@
         </div>
         <div class="grid g2">
           <div class="card">
-            <div class="card-h"><h2>Offene Probleme</h2><span class="tag t-warn">2 aktiv</span></div>
-            <div class="list">
-              <div class="li"><div class="main-t"><div style="font-weight:650">Drucker fallen bei Kunden regelmäßig aus</div><div class="sub muted" style="font-size:13px">4 verknüpfte Incidents · Ursache vermutet: Treiber</div></div><span class="tag t-warn">Untersuchung</span></div>
-              <div class="li"><div class="main-t"><div style="font-weight:650">WLAN bricht im Lager ab</div><div class="sub muted" style="font-size:13px">2 Incidents · Ursache: Firmware Router</div></div><span class="tag t-info">Workaround</span></div>
-              <div class="li"><div class="main-t"><div style="font-weight:650">Passwörter laufen zu oft ab</div><div class="sub muted" style="font-size:13px">7 Incidents · Richtlinie wird geprüft</div></div><span class="tag t-ok">Gelöst</span></div>
-            </div>
+            <div class="card-h"><h2>Offene Probleme</h2><span class="tag t-warn" id="probCount">0 aktiv</span></div>
+            <div class="list" id="probList"></div>
           </div>
-          <div class="card">
-            <h2 style="margin-bottom:6px">Ursachenanalyse</h2>
-            <p class="muted" style="font-size:14px;margin-bottom:14px">Problem: Drucker fallen bei Kunden regelmäßig aus.</p>
-            <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:12px;font-size:14px">
-              <li><b>Warum fällt der Drucker aus?</b> Der Druckdienst stürzt ab.</li>
-              <li><b>Warum stürzt er ab?</b> Ein Treiber verträgt das letzte Update nicht.</li>
-              <li><b>Warum wurde das Update installiert?</b> Die Richtlinie aktualisiert Treiber automatisch.</li>
-              <li><b>Warum gibt es keine Prüfung?</b> Kein Testgerät im Lager.</li>
-            </ol>
-            <div class="note info" style="margin-top:16px">Vorschlag: Automatische Treiber-Updates pro Kunde über einen Change steuern.</div>
-          </div>
+          <div class="card" id="probDetail"></div>
         </div>
       </section>
 
@@ -406,11 +370,7 @@
         </div>
         <div class="grid g2">
           <div class="card">
-            <div class="list">
-              <button class="li" type="button" data-kb="kb1" style="background:none;border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);padding:14px 0"><span class="main-t"><span style="font-weight:650;display:block">Drucker-Treiber sauber installieren</span><span class="sub muted" style="font-size:13px">Zuletzt geprüft vor 12 Tagen</span></span><span class="tag t-ok">Aktuell</span></button>
-              <button class="li" type="button" data-kb="kb2" style="background:none;border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);padding:14px 0"><span class="main-t"><span style="font-weight:650;display:block">WLAN-Firmware sicher aktualisieren</span><span class="sub muted" style="font-size:13px">Wartung nur im Change-Fenster</span></span><span class="tag t-warn">Prüfen</span></button>
-              <button class="li" type="button" data-kb="kb3" style="background:none;border:0;text-align:left;color:var(--ink);padding:14px 0"><span class="main-t"><span style="font-weight:650;display:block">Passwort zurücksetzen (Vorlage)</span><span class="sub muted" style="font-size:13px">Schritt für Schritt für den Empfang</span></span><span class="tag t-ok">Aktuell</span></button>
-            </div>
+            <div class="list" id="kbList"></div>
           </div>
           <div class="card" id="kbView"></div>
         </div>
@@ -483,7 +443,7 @@
         </div>
         <div class="grid g3" id="staffGrid"></div>
         <div class="card">
-          <div class="card-h"><h2>Bewerber</h2><span class="muted" style="font-size:13px" id="candCount">2 von 8 Kandidaten</span></div>
+          <div class="card-h"><h2>Bewerber</h2><span class="muted" style="font-size:13px" id="candCount"></span></div>
           <div class="list" id="candList"></div>
         </div>
       <div class="card"><div class="card-h"><h2>Automatisierung</h2><button class="btn btn-s btn-sm" type="button" data-act="train">Schulung buchen</button></div><p class="hint" style="margin-bottom:6px">Routinen automatisieren spart Zeit. Fehlerhafte Automatisierung erzeugt einen Incident.</p><div id="autoList"></div></div>
@@ -492,13 +452,13 @@
       <!-- FINANZEN -->
       <section class="scr" data-screen="finanzen" hidden>
         <div class="ph">
-          <div><div class="eyebrow">Betrieb · <span class="js-company">Nordlicht IT Service</span></div><h1 id="cashTitle">18.420 € auf dem Konto.</h1></div>
+          <div><div class="eyebrow">Betrieb · <span class="js-company">Nordlicht IT Service</span></div><h1 id="cashTitle">Finanzen</h1></div>
           <div class="acts"><button class="btn" type="button" data-act="invoice">Rechnung schreiben</button></div>
         </div>
         <div class="grid g4">
-          <div class="card kpi"><div class="l">Einnahmen (Monat)</div><div class="v" style="color:var(--ok)">24.900 €</div><div class="s">Support-Verträge 15.600 €</div></div>
-          <div class="card kpi"><div class="l">Kosten (Monat)</div><div class="v">19.760 €</div><div class="s">Gehälter 14.200 €</div></div>
-          <div class="card kpi"><div class="l">Kredit</div><div class="v" style="color:var(--bad)">−8.000 €</div><div class="s">Zins 4,5 % · Rate 310 €</div></div>
+          <div class="card kpi"><div class="l">Einnahmen (Monat)</div><div class="v" style="color:var(--ok)" id="finIn">0 €</div><div class="s" id="finInS"></div></div>
+          <div class="card kpi"><div class="l">Kosten (Monat)</div><div class="v" id="finCost">0 €</div><div class="s" id="finCostS"></div></div>
+          <div class="card kpi"><div class="l">Kredit</div><div class="v" style="color:var(--bad)" id="finLoan">0 €</div><div class="s" id="finLoanS"></div></div>
           <div class="card kpi"><div class="l">Offene Rechnungen</div><div class="v" id="openInv">2.270 €</div><div class="s" id="openInvS">2 Rechnungen</div></div>
         </div>
         <div class="grid g2">

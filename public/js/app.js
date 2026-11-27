@@ -101,11 +101,12 @@ var scenarios = [
 ];
 var shiftLog = [];
 var cash = 18420;
+var ops = {};
 var staffList = ["Jonas Keller", "Mira Stein", "Ole Brandt", "Derrik Winchester"];
 var staff = [
-  { name:"Jonas Keller", role:"Netzwerk-Admin · Stufe 6", ini:"JK", energy:78, stress:32, skills:[["Netzwerk",90],["Windows",70],["Hardware",55],["Sicherheit",40]] },
-  { name:"Mira Stein", role:"Kundenbetreuung · Stufe 3", ini:"MS", energy:48, stress:71, skills:[["Kundenkontakt",85],["Dokumentation",60],["Windows",45],["Netzwerk",20]], warn:"Burnout-Warnung" },
-  { name:"Ole Brandt", role:"Hardware · Stufe 4", ini:"OB", energy:0, stress:0, skills:[["Hardware",88],["Drucker",92],["Windows",50],["Cloud",15]], sick:"Krank bis Donnerstag" }
+  { name:"Jonas Keller", role:"Netzwerk-Admin · Stufe 6", ini:"JK", pay:4200, sickDays:0, energy:78, stress:32, skills:[["Netzwerk",90],["Windows",70],["Hardware",55],["Sicherheit",40]] },
+  { name:"Mira Stein", role:"Kundenbetreuung · Stufe 3", ini:"MS", pay:3400, sickDays:0, energy:48, stress:71, skills:[["Kundenkontakt",85],["Dokumentation",60],["Windows",45],["Netzwerk",20]], warn:"Burnout-Warnung" },
+  { name:"Ole Brandt", role:"Hardware · Stufe 4", ini:"OB", pay:3600, sickDays:2, energy:0, stress:0, skills:[["Hardware",88],["Drucker",92],["Windows",50],["Cloud",15]], sick:"Krank bis Donnerstag" }
 ];
 var candidates = [
   { id:"c1", name:"Lea Fischer", skills:"Netzwerk 5 · Windows 4", pay:3200, note:"Zertifikat Netzwerk-Grundlagen" },
@@ -279,6 +280,7 @@ function tickClock(){
   if (paused || !P.save) return;
   minutes += 1;
   if (minutes >= 24 * 60){ minutes = 0; day += 1; }
+  opsTick();
   var hh = String(Math.floor(minutes / 60)).padStart(2, "0"), mm = String(minutes % 60).padStart(2, "0");
   $("#clock").innerHTML = "Tag <b>" + day + "</b> · <b>" + hh + ":" + mm + "</b>";
 }
@@ -458,7 +460,7 @@ $("#ticketSearch").addEventListener("input", renderTickets);
 
 document.addEventListener("click", function(e){
   var o = e.target.closest("[data-open]");
-  if (o && !e.target.closest("[data-assign]")){ currentTicket = o.getAttribute("data-open"); location.hash = "ticket"; }
+  if (o && !e.target.closest("[data-assign]")){ currentTicket = o.getAttribute("data-open"); closePops(); if (location.hash === "#ticket") render(); else location.hash = "ticket"; }
 });
 
 function findTicket(){ return tickets.filter(function(t){ return t.id === currentTicket; })[0] || tickets[0]; }
@@ -609,6 +611,7 @@ function resolveModal(){
       if (wasMajor) pmCreate(t);
       if (closedInShift.indexOf(t.id) < 0) closedInShift.push(t.id);
       t.thread.push({ k:"staff", who:t.who, text:"Lösung: " + v, when:"Gerade eben" });
+      if ($("#resKb", el).checked) addKbArticle(t.title, v, "Entwurf", "Entwurf aus " + t.id + " · prüfen und freigeben");
       close(); renderAll(); renderTicket();
       toast("Ticket " + t.id + " gelöst.", "ok");
     }
@@ -651,12 +654,12 @@ function newTicketModal(){
       if (a !== "save") return;
       var title = $("#ntTitle", el).value.trim();
       if (title.length < 3){ $("#ntTitleErr", el).textContent = "Bitte eine kurze Beschreibung eingeben."; $("#ntTitle", el).setAttribute("aria-invalid", "true"); $("#ntTitle", el).focus(); return; }
-      var n = 1035 + tickets.length;
       var imp = +$("#ntImp", el).value, urg = +$("#ntUrg", el).value;
       var cust = $("#ntCust", el).value;
-      tickets.unshift({ id:"T-" + n, title:title, cust:cust, requester:"Kontakt bei " + cust, cat:"Sonstiges", impact:imp, urgency:urg, prio:prioFrom(imp, urg), sla:"4 h", slaMin:240, status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
+      var np = prioFrom(imp, urg);
+      tickets.unshift({ id:nextId("T-", tickets), title:title, cust:cust, requester:"Kontakt bei " + cust, cat:"Sonstiges", impact:imp, urgency:urg, prio:np, sla:fmtSla(slaFor(np)), slaMin:slaFor(np), status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
         thread:[{ k:"client", who:"Kontakt bei " + cust, text:title + ". Vom Kunden telefonisch gemeldet.", when:"Gerade eben" }] });
-      close(); renderAll(); toast("Ticket T-" + n + " angelegt.", "ok");
+      close(); renderAll(); toast("Ticket " + tickets[0].id + " angelegt.", "ok");
     }
   });
 }
@@ -675,20 +678,24 @@ function endShift(){
       var paid = closedInShift.length * 150;
       cash += paid;
       for (var i = 0; i < 2; i++){
-        var p = POOL[shiftIndex % POOL.length];
+        var solved = solvedCats(), p = POOL[shiftIndex % POOL.length];
+        for (var g = 0; g < POOL.length && solved.indexOf(p.cat) >= 0; g++) { shiftIndex++; p = POOL[shiftIndex % POOL.length]; }
         shiftIndex++;
-        var n = 1040 + shiftIndex;
-        tickets.unshift({ id:"T-" + n, title:p.title, cust:p.cust, requester:p.requester, cat:p.cat, impact:p.impact, urgency:p.urgency, prio:prioFrom(p.impact, p.urgency), sla:"4 h", slaMin:240, status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
+        var pp = prioFrom(p.impact, p.urgency);
+        tickets.unshift({ id:nextId("T-", tickets), title:p.title, cust:p.cust, requester:p.requester, cat:p.cat, impact:p.impact, urgency:p.urgency, prio:pp, sla:fmtSla(slaFor(pp)), slaMin:slaFor(pp), status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
           thread:[{ k:"client", who:p.requester, text:p.title + ".", when:"Heute, Schichtbeginn" }] });
       }
       shiftLog.unshift({ day: day, done: pre.done, open: pre.open, added: 2, paid: paid });
       closedInShift = [];
+      ops.monthIncome += paid;
       day += 1; minutes = 8 * 60; deliverOrders();
+      var evs = opsNewDay();
       $("#clock").innerHTML = "Tag <b>" + day + "</b> · <b>08:00</b>";
       renderAll();
       openModal({
         title: "Schichtbericht", sub: "Tag " + (day - 1) + " ist abgeschlossen.",
         body: '<dl class="kv"><dt>Erledigt</dt><dd class="num">' + pre.done + ' Tickets</dd><dt>Verschoben</dt><dd class="num">' + pre.open + ' Tickets</dd><dt>Neu eingegangen</dt><dd class="num">2 Tickets</dd><dt>Einnahmen</dt><dd class="num">' + eur(paid) + '</dd><dt>Kasse</dt><dd class="num">' + eur(cash) + '</dd></dl>' +
+          (evs.length ? '<div class="list">' + evs.map(function(x){ return '<div class="li"><span>' + esc(x[0]) + '</span>' + (x[1] ? '<span class="tag ' + x[2] + '">' + esc(x[1]) + '</span>' : '') + '</div>'; }).join("") + '</div>' : '') +
           '<div class="note info">Die Schicht beginnt um 08:00. Die Spielzeit läuft ab jetzt weiter.</div>',
         actions: '<button class="btn" type="button" data-close>Weiter</button>'
       });
@@ -737,7 +744,7 @@ function newChangeModal(){
       var title = $("#chTitle", el).value.trim();
       if (title.length < 3){ $("#chTitleErr", el).textContent = "Bitte einen Titel eingeben."; return; }
       var type = $("#chType", el).value;
-      changes.unshift({ id:"CHG-" + (207 + changes.length - 3), title:title, type:type, risk:$("#chRisk", el).value, status: type === "Standard" ? "Genehmigt" : "Zur Prüfung", cab: type === "Emergency" ? "Sofort" : "Mo, 09:00" });
+      changes.unshift({ id:nextId("CHG-", changes), title:title, type:type, risk:$("#chRisk", el).value, status: type === "Standard" ? "Genehmigt" : "Zur Prüfung", cab: type === "Emergency" ? "Sofort" : "Mo, 09:00" });
       close(); renderChanges(); renderAll(); toast("Change beantragt.", "ok");
     }
   });
@@ -781,7 +788,7 @@ function serviceCapModal(id){
       if (cash < cost){ toast("Zu wenig Budget für diese Erweiterung.", "bad"); return; }
       cash -= cost;
       s.cap = Math.max(0, s.cap - step);
-      audit.unshift({ t:"Gerade eben", who:"Derrik", what:"Kapazität „" + s.name + "“ erhöht", ref:"Dienst" });
+      audit.unshift({ t:"Gerade eben", who:me(), what:"Kapazität „" + s.name + "“ erhöht", ref:"Dienst" });
       close(); renderAll(); toast(s.name + " hat jetzt mehr Reserve.", "ok");
     }
   });
@@ -790,7 +797,7 @@ function serviceRestoreModal(id){
   var s = services.filter(function(x){ return x.id === id; })[0];
   confirmModal("Aus Backup wiederherstellen?", "„" + esc(s.name) + "“ wird aus dem Backup vom Tag 03:00 zurückgeholt. Änderungen seit 03:00 gehen verloren.", "Wiederherstellen", "btn-d", function(){
     s.avail = Math.min(100, s.avail + 5);
-    audit.unshift({ t:"Gerade eben", who:"Derrik", what:"Dienst „" + s.name + "“ aus Backup wiederhergestellt", ref:"Restore" });
+    audit.unshift({ t:"Gerade eben", who:me(), what:"Dienst „" + s.name + "“ aus Backup wiederhergestellt", ref:"Restore" });
     renderAll(); toast(s.name + " läuft wieder.", "ok");
   });
 }
@@ -807,7 +814,7 @@ function maintModal(){
       if (note.length < 5){ $("#mtNoteErr", el).textContent = "Bitte kurz beschreiben, was gemacht wird."; return; }
       var svc = $("#mtSvc", el).value, when = $("#mtWhen", el).value;
       maint.push({ svc:svc, when:when, status:"geplant" });
-      changes.unshift({ id:"CHG-" + (207 + changes.length - 3), title:"Wartung: " + svc, type:"Normal", risk:"Mittel", status:"Zur Prüfung", cab:when });
+      changes.unshift({ id:nextId("CHG-", changes), title:"Wartung: " + svc, type:"Normal", risk:"Mittel", status:"Zur Prüfung", cab:when });
       close(); renderAll(); toast("Wartung eingereicht. Das CAB entscheidet.", "ok");
     }
   });
@@ -843,7 +850,7 @@ $("#accRows").addEventListener("click", function(e){
   function apply(){
     r.status = decision === "ok" ? "genehmigt" : "abgelehnt";
     if (decision === "ok") adAccessGranted(r);
-    audit.unshift({ t:"Gerade eben", who:"Derrik", what:(decision === "ok" ? "Zugriff genehmigt: " : "Zugriff abgelehnt: ") + r.what + " für " + r.who, ref:r.id });
+    audit.unshift({ t:"Gerade eben", who:me(), what:(decision === "ok" ? "Zugriff genehmigt: " : "Zugriff abgelehnt: ") + r.what + " für " + r.who, ref:r.id });
     renderAll(); toast(r.id + " " + r.status + ".", decision === "ok" ? "ok" : "");
   }
   if (decision === "ok" && r.policy !== "ok"){
@@ -859,20 +866,20 @@ document.addEventListener("click", function(e){
 function renderReports(){
   var open = tickets.filter(function(t){ return t.status !== "Gelöst"; }).length;
   var closed = tickets.length - open;
-  $("#repSat").textContent = "4,2";
-  $("#repSla").textContent = "94 %";
-  $("#repLoad").textContent = "78 %";
+  $("#repSat").textContent = fmtDec(satScore());
+  $("#repSla").textContent = slaPct() + " %";
+  $("#repLoad").textContent = teamLoad() + " %";
   $("#repOpen").textContent = open;
-  $("#repClosed").textContent = closed + " Tickets gelöst (Woche)";
-  var rt = [["Kritisch", 22, 30], ["Hoch", 55, 60], ["Mittel", 78, 120], ["Niedrig", 90, 100]];
+  $("#repClosed").textContent = closed + " Tickets gelöst";
+  var rt = ["Kritisch", "Hoch", "Mittel", "Niedrig"].map(function(p){ return [p, avgResolve(p), slaFor(p)]; });
   $("#repBars").innerHTML = rt.map(function(r){
     var pct = Math.min(100, Math.round(r[1] / r[2] * 100));
-    return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + r[0] + '</span><span class="num">' + r[1] + ' min Reaktion · Ziel ' + r[2] + '</span></div><div class="bar ' + (pct > 80 ? "bad" : pct > 60 ? "warn" : "") + '" style="margin-top:6px"><i style="width:' + pct + '%"></i></div></div>';
+    return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + r[0] + '</span><span class="num">' + (r[1] ? r[1] + ' min Lösung' : 'noch keine gelösten') + ' · Ziel ' + r[2] + ' min</span></div><div class="bar ' + (pct > 80 ? "bad" : pct > 60 ? "warn" : "") + '" style="margin-top:6px"><i style="width:' + pct + '%"></i></div></div>';
   }).join("");
-  var sat = [["Drucken", 3.9], ["Netzwerk", 4.4], ["E-Mail", 4.6], ["Hardware", 4.1]];
+  var sat = Object.keys(ops.catSat).map(function(k){ var c = ops.catSat[k]; return [k, Math.round(c[0] / c[1] * 10) / 10, c[1]]; }).sort(function(a, b){ return b[2] - a[2]; }).slice(0, 5);
   $("#repSatBars").innerHTML = sat.map(function(r){
     return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + r[0] + '</span><span class="num">' + String(r[1]).replace(".", ",") + ' von 5</span></div><div class="bar" style="margin-top:6px"><i style="width:' + (r[1] / 5 * 100) + '%"></i></div></div>';
-  }).join("");
+  }).join("") || '<p class="hint">Noch keine Bewertungen. Kunden bewerten gelöste Tickets.</p>';
   var events = audit.map(function(a){ return { t:a.t, text:a.what + " (" + a.who + ")" }; });
   shiftLog.forEach(function(s){ events.push({ t:"Tag " + s.day, text:"Schicht beendet: " + s.done + " erledigt, " + s.open + " verschoben, " + eur(s.paid) + " eingenommen" }); });
   $("#repActivity").innerHTML = events.length ? events.map(function(e){
@@ -912,7 +919,7 @@ document.addEventListener("click", function(e){
   if (r){
     var rt = routines.filter(function(x){ return x.id === r.getAttribute("data-routine"); })[0];
     rt.done = true;
-    audit.unshift({ t:"Gerade eben", who:"Derrik", what:"Routine erledigt: " + rt.name, ref:rt.asset });
+    audit.unshift({ t:"Gerade eben", who:me(), what:"Routine erledigt: " + rt.name, ref:rt.asset });
     renderAll(); toast("Routine erledigt. Das senkt das Risiko von Wiederholungs-Incidents.", "ok");
     return;
   }
@@ -927,7 +934,7 @@ document.addEventListener("click", function(e){
         if (a !== "save") return;
         var v = $("#polVal", el).value.trim();
         if (v.length < 3 || v === pol.value){ $("#polValErr", el).textContent = v === pol.value ? "Die Regel ist unverändert." : "Bitte eine Regel eingeben."; return; }
-        changes.unshift({ id:"CHG-" + (207 + changes.length - 3), title:"Richtlinie: " + pol.name + " → " + v, type:"Normal", risk:"Niedrig", status:"Zur Prüfung", cab:"Mo, 09:00" });
+        changes.unshift({ id:nextId("CHG-", changes), title:"Richtlinie: " + pol.name + " → " + v, type:"Normal", risk:"Niedrig", status:"Zur Prüfung", cab:"Mo, 09:00" });
         close(); renderAll(); toast("Änderung eingereicht. Das CAB entscheidet.", "ok");
       }
     });
@@ -999,8 +1006,7 @@ document.addEventListener("click", function(e){
   var n = 0;
   var pool = POOL.slice(0, 2);
   pool.forEach(function(p, i){
-    var id = 1060 + tickets.length + i;
-    tickets.unshift({ id:"T-" + id, title:"Szenario: " + p.title, cust:p.cust, requester:p.requester, cat:p.cat, impact:Math.max(p.impact, 3), urgency:4, prio:prioFrom(Math.max(p.impact, 3), 4), sla:"30 min", slaMin:30, status:"Major Incident", who:"—", inv:0, log:[], notes:[], resolution:"",
+    tickets.unshift({ id:nextId("T-", tickets), title:"Szenario: " + p.title, cust:p.cust, requester:p.requester, cat:p.cat, impact:Math.max(p.impact, 3), urgency:4, prio:prioFrom(Math.max(p.impact, 3), 4), sla:"30 min", slaMin:30, status:"Major Incident", who:"—", inv:0, log:[], notes:[], resolution:"",
       thread:[{ k:"client", who:p.requester, text:p.title + ". Mehrere Kunden sind betroffen.", when:"Gerade eben" }] });
     n++;
   });
@@ -1021,6 +1027,7 @@ function renderOverview(){
   var open = tickets.filter(function(t){ return t.status !== "Gelöst"; });
   var urgent = open.filter(function(t){ return t.prio === "Kritisch" || t.prio === "Hoch"; }).length;
   $("#ovUrgent").textContent = urgent;
+  renderOverviewKpis(open);
   $("#ovSvc").textContent = services.filter(function(s){ return svcState(s) === "ok"; }).length + " von " + services.length;
 }
 
@@ -1051,13 +1058,17 @@ document.addEventListener("click", function(e){
   else if (a === "addcable") addCableModal();
   else if (a === "tutorial") confirmModal("Tutorial starten?", "Das Tutorial legt einen eigenen Speicherstand „Tutorial“ an (leichte Schwierigkeit).", "Starten", "", function(){ createSave("Tutorial", "single", "leicht", "it").then(function(){ toast("Tutorial gestartet. Fang mit dem kritischen Ticket an.", "ok"); }).catch(apiErr); });
   else if (a === "glossary") toast("Glossar: Begriffe wie Incident, Change, CMDB und SLA erklärt das Spiel direkt bei der Verwendung.");
-  else if (a === "applicants") location.hash = "personal";
-  else if (a === "impact") toast("Auswirkung: Router-Lager betrifft 14 Arbeitsplätze und 2 Kunden.", "ok");
+  else if (a === "applicants") { if (location.hash !== "#personal") location.hash = "personal"; setTimeout(function(){ var c = $("#candList"); if (c) { c.scrollIntoView({ behavior:"smooth", block:"center" }); c.closest(".card").classList.add("flash"); setTimeout(function(){ c.closest(".card").classList.remove("flash"); }, 1200); } }, 80); }
+  else if (a === "impact") ciImpact();
   else if (a === "profil") profileModal();
   else if (a === "register") setAuthMode("register");
   else if (a === "pwreset") { e.preventDefault(); toast("Der Server verschickt keine E-Mails. Ein Server-Admin gibt dir ein vorläufiges Kennwort."); }
   else if (a === "newaccess") toast("Zugriffsanfragen kommen von Kunden und Mitarbeitern. Bearbeite sie in der Liste.");
-  else if (a === "newservice" || a === "newci" || a === "newproblem" || a === "newarticle" || a === "newuser-ad") toast("Das Anlegen eigener Einträge kommt in einer späteren Version.");
+  else if (a === "newservice") newServiceModal();
+  else if (a === "newci") newCiModal();
+  else if (a === "newproblem") newProblemModal();
+  else if (a === "newarticle") newArticleModal();
+  else if (a === "newuser-ad") location.hash = "verzeichnis";
   else if (a === "train" || a === "invite-access" || a === "addhw") { /* handled elsewhere */ }
   else toast("Diese Funktion kommt in einer späteren Version.");
 });
@@ -1072,23 +1083,251 @@ var CI = {
   "NAS-Büro": { typ:"Speicher", kunde:"Steuerbüro Hahn", st:"OK", dep:["Buchhaltung","Datensicherung"] },
   "Lizenz Office": { typ:"Lizenz", kunde:"Steuerbüro Hahn", st:"Läuft ab", dep:["12 Benutzer"] }
 };
-function showCI(name){
-  var c = CI[name];
-  $("#ciDetail").innerHTML = '<div class="card-h"><h2>' + esc(name) + '</h2><span class="tag ' + (c.st === "OK" ? "t-ok" : c.st === "Offline" ? "t-bad" : "t-warn") + '">' + esc(c.st) + '</span></div>' +
-    '<dl class="kv"><dt>Typ</dt><dd>' + esc(c.typ) + '</dd><dt>Kunde</dt><dd>' + esc(c.kunde) + '</dd></dl>' +
-    '<h3 style="margin:18px 0 10px">Hängt daran</h3><div class="list" style="gap:8px">' + c.dep.map(function(d){ return '<div class="li" style="padding:0"><span>' + esc(d) + '</span><span class="tag t-mut">Abhängig</span></div>'; }).join("") + '</div>';
-}
-$$("[data-ci]").forEach(function(r){ r.addEventListener("click", function(){ showCI(r.getAttribute("data-ci")); }); });
-showCI("HP-Empfang");
+/* ---------- ITSM: Katalog, CMDB, Probleme, Wissen (aus dem Spielstand) ---------- */
+var catalog = [
+  { id:"S-01", name:"Arbeitsplatz-Einrichtung", type:"Standard", desc:"Neues Gerät, Software und Konto für einen Mitarbeitenden.", sla:"1 Tag", price:"180 €" },
+  { id:"S-02", name:"Störungsbehebung", type:"Incident", desc:"Ausfälle melden, eingrenzen und wiederherstellen.", sla:"4 h Reaktion", price:"je Einsatz" },
+  { id:"S-03", name:"Netzwerk-Wartung", type:"Change", desc:"Geplante Arbeiten an Router, Switch und WLAN.", sla:"Normal-Change", price:"Support-Vertrag" },
+  { id:"S-04", name:"Passwort zurücksetzen", type:"Standard", desc:"Konto entsperren und neues Passwort setzen.", sla:"1 h", price:"25 €" },
+  { id:"S-05", name:"Serverwartung", type:"Change", desc:"Updates, Backups und Speicherpflege auf dem Server.", sla:"Wartungsfenster", price:"Vertrag" },
+  { id:"S-06", name:"Datenwiederherstellung", type:"Dringend", desc:"Dateien aus Backups zurückholen. Dringend bei Ransomware.", sla:"2 h", price:"420 €" }
+];
+var CAT_TAG = { "Standard":"t-ok", "Incident":"t-info", "Change":"t-warn", "Dringend":"t-bad" };
+var problems = [
+  { id:"PRB-01", title:"Drucker fallen bei Kunden regelmäßig aus", cat:"Drucken", base:3, status:"Untersuchung", cause:"Treiber (vermutet)",
+    whys:[["Warum fällt der Drucker aus?", "Der Druckdienst stürzt ab."], ["Warum stürzt er ab?", "Ein Treiber verträgt das letzte Update nicht."], ["Warum wurde das Update installiert?", "Die Richtlinie aktualisiert Treiber automatisch."], ["Warum gibt es keine Prüfung?", "Kein Testgerät im Lager."]],
+    fix:"Automatische Treiber-Updates pro Kunde über einen Change steuern.", change:null },
+  { id:"PRB-02", title:"WLAN bricht im Lager ab", cat:"Netzwerk", base:1, status:"Workaround", cause:"Firmware Router", whys:[["Warum bricht das WLAN ab?", "Der Router startet unter Last neu."]], fix:"Firmware im Change-Fenster aktualisieren.", change:null },
+  { id:"PRB-03", title:"Passwörter laufen zu oft ab", cat:"Konten und Zugriff", base:6, status:"Gelöst", cause:"Richtlinie", whys:[["Warum sperren sich Konten?", "Kennwörter laufen alle 30 Tage ab."]], fix:"Richtlinie auf 90 Tage gestellt.", change:null }
+];
+var PROB_TAG = { "Untersuchung":"t-warn", "Workaround":"t-info", "Gelöst":"t-ok" };
+var CI_CAT = { "Drucker":"Drucken", "Netzwerk":"Netzwerk", "Speicher":"Hardware", "Arbeitsplatz":"Hardware", "Server":"Software" };
+var itsmSel = { ci:"HP-Empfang", kb:"kb1", prob:"PRB-01" };
+// kb gets a status; the mockup only had text
+(function(){ var st = { kb1:"Aktuell", kb2:"Prüfen", kb3:"Aktuell" }; Object.keys(kb).forEach(function(k){ if (!kb[k].status) kb[k].status = st[k] || "Aktuell"; }); })();
 
-/* ---------- Wissen ---------- */
-function showKb(id){
-  var a = kb[id];
-  $("#kbView").innerHTML = '<div class="card-h"><h2>' + esc(a.t) + '</h2></div><p class="hint" style="margin-bottom:12px">' + esc(a.meta) + '</p><div style="white-space:pre-line;font-size:15px;line-height:1.7">' + esc(a.b) + '</div>';
-  $$("[data-kb]").forEach(function(x){ x.setAttribute("aria-current", x.getAttribute("data-kb") === id ? "true" : "false"); x.style.background = x.getAttribute("data-kb") === id ? "var(--surface2)" : "none"; });
+function solvedCats(){ return problems.filter(function(p){ return p.status === "Gelöst"; }).map(function(p){ return p.cat; }); }
+function probIncidents(p){ return p.base + tickets.filter(function(t){ return t.cat === p.cat; }).length; }
+
+/* Katalog */
+function renderCatalog(){
+  var g = $("#catGrid"); if (!g) return;
+  g.innerHTML = catalog.map(function(s){
+    return '<div class="card"><div class="card-h"><h3>' + esc(s.name) + '</h3><span class="tag ' + (CAT_TAG[s.type] || "t-mut") + '">' + esc(s.type) + '</span></div><p class="muted">' + esc(s.desc) + '</p>' +
+      '<dl class="kv" style="margin-top:14px"><dt>SLA</dt><dd>' + esc(s.sla) + '</dd><dt>Preis</dt><dd>' + esc(s.price) + '</dd></dl></div>';
+  }).join("");
 }
-$$("[data-kb]").forEach(function(b){ b.addEventListener("click", function(){ showKb(b.getAttribute("data-kb")); }); });
-showKb("kb1");
+function newServiceModal(){
+  openModal({
+    title:"Service anlegen", sub:"Ein Angebot im Service-Katalog. Kunden bestellen danach diesen Service.",
+    body:field("nsName", "Name", '<input class="inp" id="nsName" maxlength="60" placeholder="z. B. Druckerwartung vor Ort">') +
+      field("nsType", "Art", '<select class="inp" id="nsType"><option>Standard</option><option>Incident</option><option>Change</option><option>Dringend</option></select>', null, "Standard: vorab genehmigt und wiederholbar.") +
+      field("nsDesc", "Beschreibung", '<textarea class="inp" id="nsDesc" placeholder="Was bekommt der Kunde?"></textarea>') +
+      field("nsSla", "SLA", '<input class="inp" id="nsSla" maxlength="30" placeholder="z. B. 4 h">') +
+      field("nsPrice", "Preis", '<input class="inp" id="nsPrice" maxlength="30" placeholder="z. B. 90 €">'),
+    actions:'<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Anlegen</button>',
+    onAction:function(a, el, close){
+      if (a !== "save") return;
+      var name = $("#nsName", el).value.trim(), desc = $("#nsDesc", el).value.trim();
+      $("#nsNameErr", el).textContent = name.length < 3 ? "Bitte einen Namen mit mindestens 3 Zeichen eingeben." : "";
+      $("#nsDescErr", el).textContent = desc.length < 10 ? "Bitte in mindestens 10 Zeichen beschreiben." : "";
+      if (name.length < 3 || desc.length < 10) return;
+      if (catalog.some(function(s){ return s.name.toLowerCase() === name.toLowerCase(); })) { $("#nsNameErr", el).textContent = "Diesen Service gibt es schon."; return; }
+      catalog.push({ id:nextId("S-", catalog), name:name, type:$("#nsType", el).value, desc:desc, sla:$("#nsSla", el).value.trim() || "nach Absprache", price:$("#nsPrice", el).value.trim() || "nach Aufwand" });
+      audit.unshift({ t:"Gerade eben", who:me(), what:"Service angelegt: " + name, ref:"Katalog" });
+      close(); renderAll(); toast("Service „" + name + "“ ist im Katalog.", "ok");
+    }
+  });
+}
+
+/* CMDB */
+function ciTicket(name){
+  var c = CI[name], cat = CI_CAT[c.typ];
+  if (!cat) return null;
+  return tickets.filter(function(t){ return isOpen(t) && t.cust === c.kunde && t.cat === cat; })[0] || null;
+}
+function ciState(name){
+  var c = CI[name], t = ciTicket(name);
+  if (t) return (t.prio === "Kritisch" || t.status === "Major Incident") ? "Offline" : "Warnung";
+  return CI_CAT[c.typ] ? "OK" : c.st;
+}
+function renderCMDB(){
+  var rows = $("#ciRows"); if (!rows) return;
+  if (!CI[itsmSel.ci]) itsmSel.ci = Object.keys(CI)[0];
+  rows.innerHTML = Object.keys(CI).map(function(n){
+    var c = CI[n], st = ciState(n);
+    return '<tr class="click" data-ci="' + esc(n) + '"' + (n === itsmSel.ci ? ' aria-current="true" style="background:var(--surface2)"' : '') + '><td>' + esc(n) + '</td><td>' + esc(c.typ) + '</td><td>' + esc(c.kunde) + '</td><td><span class="tag ' + (st === "OK" ? "t-ok" : st === "Offline" ? "t-bad" : st === "Warnung" ? "t-warn" : "t-mut") + '">' + esc(st) + '</span></td></tr>';
+  }).join("");
+  showCI(itsmSel.ci);
+}
+function showCI(name){
+  var c = CI[name]; if (!c) return;
+  itsmSel.ci = name;
+  var st = ciState(name), t = ciTicket(name);
+  $("#ciDetail").innerHTML = '<div class="card-h"><h2>' + esc(name) + '</h2><span class="tag ' + (st === "OK" ? "t-ok" : st === "Offline" ? "t-bad" : "t-warn") + '">' + esc(st) + '</span></div>' +
+    '<dl class="kv"><dt>Typ</dt><dd>' + esc(c.typ) + '</dd><dt>Kunde</dt><dd>' + esc(c.kunde) + '</dd>' + (t ? '<dt>Ticket</dt><dd><button class="crumb-link" type="button" data-open="' + esc(t.id) + '" style="background:none;border:0;padding:0;cursor:pointer">' + esc(t.id) + ' · ' + esc(t.title) + '</button></dd>' : '') + '</dl>' +
+    '<h3 style="margin:18px 0 10px">Hängt daran</h3><div class="list" style="gap:8px">' + (c.dep.length ? c.dep.map(function(d){ return '<div class="li" style="padding:0"><span>' + esc(d) + '</span><span class="tag ' + (st === "OK" ? "t-mut" : "t-warn") + '">' + (st === "OK" ? "Abhängig" : "Betroffen") + '</span></div>'; }).join("") : '<p class="hint">Keine Abhängigkeiten erfasst.</p>') + '</div>';
+}
+function ciImpact(){
+  var name = itsmSel.ci, c = CI[name];
+  var custs = {}; custs[c.kunde] = true;
+  Object.keys(CI).forEach(function(n){ if (n !== name && CI[n].dep.some(function(d){ return c.dep.indexOf(d) >= 0; })) custs[CI[n].kunde] = true; });
+  var open = tickets.filter(function(t){ return isOpen(t) && custs[t.cust]; }).length;
+  openModal({
+    title:"Auswirkung: " + name, sub:"Was fällt aus, wenn diese Einheit ausfällt?",
+    body:'<dl class="kv"><dt>Direkt abhängig</dt><dd>' + c.dep.length + ' Einheit' + (c.dep.length === 1 ? '' : 'en') + '</dd><dt>Betroffene Kunden</dt><dd>' + esc(Object.keys(custs).join(", ")) + '</dd><dt>Offene Tickets dieser Kunden</dt><dd class="num">' + open + '</dd></dl>' +
+      (c.dep.length ? '<div class="list" style="margin-top:12px">' + c.dep.map(function(d){ return '<div class="li"><span>' + esc(d) + '</span><span class="tag t-warn">fällt mit aus</span></div>'; }).join("") + '</div>' : '') +
+      '<div class="note info" style="margin-top:12px">Plane Arbeiten an dieser Einheit als Change mit Wartungsfenster.</div>',
+    actions:'<button class="btn" type="button" data-close>Schließen</button>'
+  });
+}
+function newCiModal(){
+  var custs = {};
+  tickets.forEach(function(t){ custs[t.cust] = true; }); Object.keys(CI).forEach(function(n){ custs[CI[n].kunde] = true; });
+  openModal({
+    title:"Konfigurationseinheit anlegen", sub:"Ein Gerät, Dienst oder eine Lizenz, die du für einen Kunden betreust.",
+    body:field("ncName", "Name", '<input class="inp" id="ncName" maxlength="40" placeholder="z. B. Switch-Empfang">') +
+      field("ncTyp", "Typ", '<select class="inp" id="ncTyp"><option>Drucker</option><option>Netzwerk</option><option>Speicher</option><option>Server</option><option>Arbeitsplatz</option><option>Lizenz</option></select>') +
+      field("ncKunde", "Kunde", '<select class="inp" id="ncKunde">' + Object.keys(custs).sort().map(function(k){ return '<option>' + esc(k) + '</option>'; }).join("") + '</select>') +
+      field("ncDep", "Was hängt daran?", '<input class="inp" id="ncDep" placeholder="Durch Komma getrennt, z. B. Empfang-PC, Kasse">'),
+    actions:'<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Anlegen</button>',
+    onAction:function(a, el, close){
+      if (a !== "save") return;
+      var name = $("#ncName", el).value.trim();
+      if (name.length < 3) { $("#ncNameErr", el).textContent = "Bitte einen Namen mit mindestens 3 Zeichen eingeben."; return; }
+      if (CI[name]) { $("#ncNameErr", el).textContent = "Diese Einheit gibt es schon."; return; }
+      CI[name] = { typ:$("#ncTyp", el).value, kunde:$("#ncKunde", el).value, st:"OK", dep:$("#ncDep", el).value.split(",").map(function(x){ return x.trim(); }).filter(Boolean) };
+      itsmSel.ci = name;
+      audit.unshift({ t:"Gerade eben", who:me(), what:"CI angelegt: " + name, ref:"CMDB" });
+      close(); renderAll(); toast(name + " ist in der CMDB.", "ok");
+    }
+  });
+}
+
+/* Probleme */
+function renderProblems(){
+  var l = $("#probList"); if (!l) return;
+  if (!problems.some(function(p){ return p.id === itsmSel.prob; }) && problems[0]) itsmSel.prob = problems[0].id;
+  $("#probCount").textContent = problems.filter(function(p){ return p.status !== "Gelöst"; }).length + " aktiv";
+  l.innerHTML = problems.map(function(p){
+    return '<button class="li" type="button" data-prob="' + p.id + '" style="background:' + (p.id === itsmSel.prob ? "var(--surface2)" : "none") + ';border:0;border-bottom:1px solid var(--line);text-align:left;color:var(--ink);padding:12px 8px;width:100%;cursor:pointer"><div class="main-t"><div style="font-weight:650">' + esc(p.title) + '</div><div class="sub muted" style="font-size:13px">' + probIncidents(p) + ' verknüpfte Incidents · Ursache: ' + esc(p.cause || "unbekannt") + '</div></div><span class="tag ' + PROB_TAG[p.status] + '">' + esc(p.status) + '</span></button>';
+  }).join("");
+  var p = problems.filter(function(x){ return x.id === itsmSel.prob; })[0];
+  var d = $("#probDetail");
+  if (!p) { d.innerHTML = '<p class="hint">Noch kein Problem erfasst.</p>'; return; }
+  var ch = p.change ? changes.filter(function(c){ return c.id === p.change; })[0] : null;
+  d.innerHTML = '<div class="card-h"><h2>Ursachenanalyse</h2><span class="tag ' + PROB_TAG[p.status] + '">' + esc(p.status) + '</span></div>' +
+    '<p class="muted" style="font-size:14px;margin-bottom:14px">' + esc(p.id) + ' · ' + esc(p.title) + ' · Kategorie ' + esc(p.cat) + '</p>' +
+    (p.whys.length ? '<ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:12px;font-size:14px">' + p.whys.map(function(w){ return '<li><b>' + esc(w[0]) + '</b> ' + esc(w[1]) + '</li>'; }).join("") + '</ol>' : '<p class="hint">Noch keine Warum-Fragen. Frag fünfmal „Warum?“, bis die Ursache klar ist.</p>') +
+    (p.status !== "Gelöst" ? '<form id="whyForm" style="display:flex;flex-direction:column;gap:8px;margin-top:14px" novalidate><div class="grid g2" style="gap:8px"><input class="inp" id="whyQ" placeholder="Warum …?" maxlength="120"><input class="inp" id="whyA" placeholder="Weil …" maxlength="160"></div><div class="err" id="whyErr"></div><div><button class="btn btn-s btn-sm" type="submit">Warum-Schritt hinzufügen</button></div></form>' : '') +
+    (p.fix ? '<div class="note info" style="margin-top:16px">Vorschlag: ' + esc(p.fix) + '</div>' : '') +
+    (ch ? '<p class="hint" style="margin-top:10px">Change ' + esc(ch.id) + ': ' + esc(ch.status) + '</p>' : '') +
+    (p.status !== "Gelöst" ? '<div class="acts" style="margin-top:14px">' +
+      (p.status === "Untersuchung" ? '<button class="btn btn-s btn-sm" type="button" data-prob-act="workaround">Workaround dokumentieren</button>' : '') +
+      (!p.change ? '<button class="btn btn-s btn-sm" type="button" data-prob-act="change">Change beantragen</button>' : '') +
+      '<button class="btn btn-ok btn-sm" type="button" data-prob-act="solve">Problem lösen</button></div>' : '<p class="hint" style="margin-top:14px">Gelöst. Neue Tickets dieser Art kommen seltener.</p>');
+}
+function newProblemModal(){
+  var cats = {}; tickets.forEach(function(t){ cats[t.cat] = (cats[t.cat] || 0) + 1; });
+  openModal({
+    title:"Problem erfassen", sub:"Ein Problem ist die unbekannte Ursache hinter wiederkehrenden Incidents.",
+    body:field("npTitle", "Titel", '<input class="inp" id="npTitle" maxlength="80" placeholder="z. B. VPN bricht nachts ab">') +
+      field("npCat", "Kategorie der Incidents", '<select class="inp" id="npCat">' + Object.keys(cats).sort().map(function(k){ return '<option value="' + esc(k) + '">' + esc(k) + ' (' + cats[k] + ' Tickets)</option>'; }).join("") + '</select>') +
+      field("npCause", "Vermutete Ursache (optional)", '<input class="inp" id="npCause" maxlength="80">'),
+    actions:'<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Erfassen</button>',
+    onAction:function(a, el, close){
+      if (a !== "save") return;
+      var title = $("#npTitle", el).value.trim();
+      if (title.length < 5) { $("#npTitleErr", el).textContent = "Bitte einen Titel mit mindestens 5 Zeichen eingeben."; return; }
+      var cat = $("#npCat", el).value;
+      if (problems.some(function(p){ return p.cat === cat && p.status !== "Gelöst"; })) { $("#npCatErr", el).textContent = "Für diese Kategorie läuft schon ein Problem."; return; }
+      var p = { id:nextId("PRB-", problems), title:title, cat:cat, base:0, status:"Untersuchung", cause:$("#npCause", el).value.trim(), whys:[], fix:"", change:null };
+      problems.unshift(p); itsmSel.prob = p.id;
+      audit.unshift({ t:"Gerade eben", who:me(), what:"Problem erfasst: " + title, ref:p.id });
+      close(); renderAll(); toast("Problem " + p.id + " erfasst.", "ok");
+    }
+  });
+}
+
+/* Wissen */
+var KB_TAG = { "Aktuell":"t-ok", "Prüfen":"t-warn", "Entwurf":"t-info" };
+function renderKbList(){
+  var l = $("#kbList"); if (!l) return;
+  if (!kb[itsmSel.kb]) itsmSel.kb = Object.keys(kb)[0];
+  var ids = Object.keys(kb);
+  l.innerHTML = ids.map(function(id, i){
+    var a = kb[id];
+    return '<button class="li" type="button" data-kb="' + id + '" aria-current="' + (id === itsmSel.kb) + '" style="background:' + (id === itsmSel.kb ? "var(--surface2)" : "none") + ';border:0;' + (i < ids.length - 1 ? 'border-bottom:1px solid var(--line);' : '') + 'text-align:left;color:var(--ink);padding:14px 8px;width:100%;cursor:pointer"><span class="main-t"><span style="font-weight:650;display:block">' + esc(a.t) + '</span><span class="sub muted" style="font-size:13px">' + esc(a.meta) + '</span></span><span class="tag ' + (KB_TAG[a.status] || "t-mut") + '">' + esc(a.status) + '</span></button>';
+  }).join("");
+  showKb(itsmSel.kb);
+}
+function showKb(id){
+  var a = kb[id]; if (!a) return;
+  itsmSel.kb = id;
+  $("#kbView").innerHTML = '<div class="card-h"><h2>' + esc(a.t) + '</h2><span class="tag ' + (KB_TAG[a.status] || "t-mut") + '">' + esc(a.status) + '</span></div><p class="hint" style="margin-bottom:12px">' + esc(a.meta) + '</p><div style="white-space:pre-line;font-size:15px;line-height:1.7">' + esc(a.b) + '</div>' +
+    (a.status !== "Aktuell" ? '<div class="acts" style="margin-top:16px"><button class="btn btn-sm" type="button" data-kb-ok="' + id + '">Geprüft, freigeben</button></div>' : '');
+  $$("#kbList [data-kb]").forEach(function(x){ x.setAttribute("aria-current", x.getAttribute("data-kb") === id ? "true" : "false"); x.style.background = x.getAttribute("data-kb") === id ? "var(--surface2)" : "none"; });
+}
+function addKbArticle(title, body, status, meta){
+  var id = nextId("kb", Object.keys(kb).map(function(k){ return { id:k }; }));
+  kb[id] = { t:title, b:body, meta:meta, status:status };
+  itsmSel.kb = id;
+  return id;
+}
+function newArticleModal(){
+  openModal({
+    title:"Wissensartikel schreiben", sub:"Kurz und als Schritte. Der Artikel hilft beim nächsten gleichen Ticket.", wide:true,
+    body:field("naTitle", "Titel", '<input class="inp" id="naTitle" maxlength="80" placeholder="z. B. VPN-Client neu einrichten">') +
+      field("naBody", "Inhalt", '<textarea class="inp" id="naBody" style="min-height:180px" placeholder="1. …\n2. …\n3. …"></textarea>'),
+    actions:'<button class="btn btn-s" type="button" data-close>Abbrechen</button><button class="btn" type="button" data-mdact="save">Veröffentlichen</button>',
+    onAction:function(a, el, close){
+      if (a !== "save") return;
+      var t = $("#naTitle", el).value.trim(), b = $("#naBody", el).value.trim();
+      $("#naTitleErr", el).textContent = t.length < 5 ? "Bitte einen Titel mit mindestens 5 Zeichen eingeben." : "";
+      $("#naBodyErr", el).textContent = b.length < 20 ? "Bitte mindestens 20 Zeichen schreiben." : "";
+      if (t.length < 5 || b.length < 20) return;
+      addKbArticle(t, b, "Aktuell", "Geschrieben am " + stamp());
+      audit.unshift({ t:"Gerade eben", who:me(), what:"Wissensartikel: " + t, ref:"Wissen" });
+      close(); renderAll(); toast("Artikel veröffentlicht.", "ok");
+    }
+  });
+}
+
+/* Handler */
+document.addEventListener("click", function(e){
+  var b;
+  if ((b = e.target.closest("[data-ci]"))) { showCI(b.getAttribute("data-ci")); renderCMDB(); return; }
+  if ((b = e.target.closest("[data-kb]"))) { showKb(b.getAttribute("data-kb")); return; }
+  if ((b = e.target.closest("[data-kb-ok]"))) { var k = kb[b.getAttribute("data-kb-ok")]; k.status = "Aktuell"; k.meta = "Geprüft am " + stamp(); renderKbList(); toast("Artikel freigegeben.", "ok"); return; }
+  if ((b = e.target.closest("[data-prob]"))) { itsmSel.prob = b.getAttribute("data-prob"); renderProblems(); return; }
+  if ((b = e.target.closest("[data-prob-act]"))) {
+    var p = problems.filter(function(x){ return x.id === itsmSel.prob; })[0], act = b.getAttribute("data-prob-act");
+    if (act === "workaround") { p.status = "Workaround"; toast("Workaround dokumentiert. Tickets lassen sich schneller lösen.", "ok"); }
+    if (act === "change") {
+      var id = nextId("CHG-", changes);
+      changes.unshift({ id:id, title:"Problem " + p.id + ": " + (p.fix || p.title), type:"Normal", risk:"Mittel", status:"Zur Prüfung", cab:"Mo, 09:00" });
+      p.change = id; toast("Change " + id + " beantragt. Das CAB entscheidet.", "ok");
+    }
+    if (act === "solve") {
+      if (p.whys.length < 2) { toast("Erst die Ursache klären: mindestens zwei Warum-Schritte.", "bad"); return; }
+      var ch = p.change ? changes.filter(function(c){ return c.id === p.change; })[0] : null;
+      if (ch && ch.status !== "Umgesetzt") { toast("Der Change " + ch.id + " ist noch nicht umgesetzt.", "bad"); return; }
+      p.status = "Gelöst"; toast("Problem gelöst. Tickets der Kategorie " + p.cat + " kommen seltener.", "ok");
+    }
+    audit.unshift({ t:"Gerade eben", who:me(), what:p.id + ": " + p.status, ref:"Problem" });
+    renderAll(); return;
+  }
+});
+document.addEventListener("submit", function(e){
+  if (e.target.id !== "whyForm") return;
+  e.preventDefault();
+  var q = $("#whyQ").value.trim(), a = $("#whyA").value.trim();
+  if (q.length < 4 || a.length < 4) { $("#whyErr").textContent = "Bitte Frage und Antwort ausfüllen."; return; }
+  var p = problems.filter(function(x){ return x.id === itsmSel.prob; })[0];
+  p.whys.push([q, a]);
+  if (p.whys.length >= 2 && !p.cause) p.cause = a;
+  renderProblems();
+});
 
 /* ---------- Serverräume, Racks, Verkabelung ---------- */
 var racks = [
@@ -1350,7 +1589,7 @@ function addCableModal(){
       $("#kbBErr", el).textContent = errB;
       $("#kbLErr", el).textContent = errL;
       if (errA || errB || errL){ (errA ? $("#kbAp", el) : errB ? $("#kbBp", el) : $("#kbL", el)).focus(); return; }
-      var id = "K-" + String(100 + cables.length).slice(-3);
+      var id = nextId("K-", cables);
       cables.push({ id:id, a:A, pa:pa, b:B, pb:pb, type:$("#kbT", el).value, len:len, status:"ungetestet" });
       close(); renderServerroom(); toast("Kabel " + id + " verlegt. Bitte prüfen.", "ok");
     }
@@ -1403,7 +1642,7 @@ function backupRun(){
 /* ---------- Personal ---------- */
 function renderStaff(){
   $("#staffGrid").innerHTML = staff.map(function(s){
-    var tags = s.sick ? '<span class="tag t-mut">' + esc(s.sick) + '</span>' :
+    var tags = s.sickDays > 0 ? '<span class="tag t-mut">Krank, noch ' + s.sickDays + (s.sickDays === 1 ? ' Tag' : ' Tage') + '</span>' :
       '<span class="tag ' + (s.energy < 50 ? "t-warn" : "t-ok") + '">Energie ' + s.energy + ' %</span> <span class="tag ' + (s.stress > 60 ? "t-bad" : "t-ok") + '">Stress ' + s.stress + ' %</span>';
     return '<article class="card"><div style="display:flex;gap:14px;align-items:center"><span class="mark" style="width:44px;height:44px;border-radius:14px;background:var(--surface2);color:var(--ink)">' + esc(s.ini) + '</span><div style="min-width:0"><div style="font-weight:700;font-size:17px">' + esc(s.name) + '</div><div class="hint">' + esc(s.role) + '</div></div></div>' +
       '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 16px;margin:18px 0;font-size:14px">' +
@@ -1422,7 +1661,7 @@ $("#candList").addEventListener("click", function(e){
   var c = candidates.filter(function(x){ return x.id === b.getAttribute("data-hire"); })[0];
   confirmModal("Einstellen?", esc(c.name) + " bekommt " + eur(c.pay) + " im Monat. Die Gehaltszahlung läuft ab dem nächsten Monat.", "Einstellen", "", function(){
     candidates = candidates.filter(function(x){ return x.id !== c.id; });
-    staff.push({ name:c.name, role:c.note, ini:c.name.split(" ").map(function(p){ return p[0]; }).join("").slice(0,2), energy:80, stress:30, skills:[["Netzwerk",60],["Windows",50],["Hardware",40],["Sicherheit",30]] });
+    staff.push({ name:c.name, pay:c.pay, sickDays:0, role:c.note, ini:c.name.split(" ").map(function(p){ return p[0]; }).join("").slice(0,2), energy:80, stress:30, skills:[["Netzwerk",60],["Windows",50],["Hardware",40],["Sicherheit",30]] });
     renderStaff(); toast(c.name + " ist eingestellt.", "ok");
   });
 });
@@ -1469,7 +1708,7 @@ function invoiceModal(){
       if (!desc){ $("#ivDescErr", el).textContent = "Bitte eine Leistung eingeben."; bad = true; }
       if (!(amt >= 1)){ $("#ivAmtErr", el).textContent = "Bitte einen Betrag von mindestens 1 € eingeben."; bad = true; }
       if (bad) return;
-      invoices.unshift({ id:"R-" + (2042 + invoices.length - 3), cust:$("#ivCust", el).value, desc:desc, amt:Math.round(amt), status:"offen", due:"fällig in 14 Tagen" });
+      invoices.unshift({ id:nextId("R-", invoices), cust:$("#ivCust", el).value, desc:desc, amt:Math.round(amt), status:"offen", due:"fällig in 14 Tagen", dueDay:day + 14 });
       close(); renderInvoices(); toast("Rechnung erstellt.", "ok");
     }
   });
@@ -2736,7 +2975,7 @@ document.addEventListener("submit", function(e){
     var inp = $("#pcChatIn");
     var v = inp.value.trim();
     if (!v) return;
-    (PC_CHAT[pcState.chat] = PC_CHAT[pcState.chat] || []).push({ who:"Derrik", t:"Jetzt", text:v });
+    (PC_CHAT[pcState.chat] = PC_CHAT[pcState.chat] || []).push({ who:me(), t:"Jetzt", text:v });
     renderPcWin();
     $("#pcChatIn").focus();
   }
@@ -2799,13 +3038,13 @@ function mailReadHtml(){
   var m = PC_MAILS.filter(function(x){ return x.id === mailState.sel; })[0];
   if (!m) return '<div class="ol-empty"><p class="muted">Wähle eine Mail aus der Liste.</p></div>';
   var replies = m.replies.map(function(r){
-    return '<div class="ol-reply"><div class="hint">' + esc(r.time) + ' · Derrik</div><p>' + esc(r.text) + '</p></div>';
+    return '<div class="ol-reply"><div class="hint">' + esc(r.time) + ' · ' + esc(r.by || me()) + '</div><p>' + esc(r.text) + '</p></div>';
   }).join("");
   return '<article class="ol-read">' +
     '<div class="ol-head"><div class="ol-av big" aria-hidden="true">' + esc(initials(m.from)) + '</div><div style="min-width:0;flex:1">' +
     '<h2 style="font-size:20px;overflow-wrap:anywhere">' + esc(m.subj) + '</h2>' +
     '<div style="font-weight:650">' + esc(m.from) + ' <span class="muted" style="font-weight:500">&lt;' + esc(addrOf(m)) + '&gt;</span></div>' +
-    '<div class="hint">' + (m.folder === "sent" ? "An " + esc(m.to) : "An Derrik") + ' · ' + esc(m.time) + '</div></div></div>' +
+    '<div class="hint">' + (m.folder === "sent" ? "An " + esc(m.to) : "An " + esc(me())) + ' · ' + esc(m.time) + '</div></div></div>' +
     '<div class="acts" style="margin:14px 0">' +
     '<button class="btn btn-sm" type="button" data-m-reply="' + m.id + '">Antworten</button>' +
     (m.ticket ? '<button class="btn btn-s btn-sm" type="button" data-m-ticket="' + m.ticket + '">Ticket ' + m.ticket + ' öffnen</button>' : '') +
@@ -3013,7 +3252,7 @@ document.addEventListener("submit", function(e){
     $("#mBodyErr").textContent = body.length >= 10 ? "" : "Bitte mindestens 10 Zeichen schreiben.";
     if (subj.length < 3 || body.length < 10) { ((subj.length < 3) ? $("#mSubj") : $("#mBody")).focus(); return; }
     var id = Date.now();
-    PC_MAILS.push({ id:id, folder:"sent", from:"Derrik", org:"Nordlicht IT Service", to:$("#mTo").value, subj:subj, body:body, time:"Gerade eben", read:true, ticket:null, replies:[] });
+    PC_MAILS.push({ id:id, folder:"sent", from:me(), org:P.company, to:$("#mTo").value, subj:subj, body:body, time:"Gerade eben", read:true, ticket:null, replies:[] });
     mailState.compose = false; mailState.folder = "sent"; mailState.sel = id;
     renderPcWin(); renderPcIcons(); toast("Mail gesendet.", "ok");
     return;
@@ -3092,7 +3331,7 @@ function secLink(id){
   if (!m.phish) { toast("Link geöffnet: Die Seite ist harmlos."); return; }
   secScore -= 15;
   secDone[id] = true;
-  tickets.unshift({ id:"T-" + (1100 + tickets.length), title:"Sicherheitsvorfall: Zugangsdaten eingegeben", cust:"Nordlicht IT Service (intern)", requester:"Mitarbeitende/r", cat:"Sicherheit", impact:3, urgency:4, prio:"Hoch", sla:"1 h", slaMin:60, status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
+  tickets.unshift({ id:nextId("T-", tickets), title:"Sicherheitsvorfall: Zugangsdaten eingegeben", cust:"Nordlicht IT Service (intern)", requester:"Mitarbeitende/r", cat:"Sicherheit", impact:3, urgency:4, prio:"Hoch", sla:"1 h", slaMin:60, status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
     thread:[{ k:"client", who:"Mitarbeitende/r", text:"Ich habe auf einen Link in einer Mail geklickt und mein Passwort eingegeben.", when:"Gerade eben" }] });
   renderAll(); renderPcWin();
   toast("Zugangsdaten eingegeben. Sicherheitsvorfall eröffnet. −15 Punkte.", "bad");
@@ -3459,8 +3698,8 @@ function wjBackupConfirm(j){
 function wjFinish(j){
   var q = wjQuote(j);
   var total = j.decision === "replace" ? j.replace : (j.decision === "repair" ? q.repair + j.loanCost : 0);
-  if (total > 0) invoices.unshift({ id:"R-" + (2050 + invoices.length), cust:j.owner, desc:(j.decision === "replace" ? "Ersatzgerät: " : "Reparatur: ") + j.dev, amt:total, status:"offen", due:"fällig in 14 Tagen" });
-  if (j.risk) tickets.unshift({ id:"T-" + (1200 + tickets.length), title:"Datenverlust nach Reparatur: " + j.dev, cust:j.owner, requester:"Kontakt bei " + j.owner, cat:"Datenwiederherstellung", impact:2, urgency:4, prio:"Hoch", sla:"2 h", slaMin:120, status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
+  if (total > 0) invoices.unshift({ id:nextId("R-", invoices), cust:j.owner, desc:(j.decision === "replace" ? "Ersatzgerät: " : "Reparatur: ") + j.dev, amt:total, status:"offen", due:"fällig in 14 Tagen", dueDay:day + 14 });
+  if (j.risk) tickets.unshift({ id:nextId("T-", tickets), title:"Datenverlust nach Reparatur: " + j.dev, cust:j.owner, requester:"Kontakt bei " + j.owner, cat:"Datenwiederherstellung", impact:2, urgency:4, prio:"Hoch", sla:"2 h", slaMin:120, status:"Offen", who:"—", inv:0, log:[], notes:[], resolution:"",
     thread:[{ k:"client", who:"Kontakt bei " + j.owner, text:"Nach der Reparatur fehlen Dateien. Vorher wurde keine Sicherung gemacht.", when:"Gerade eben" }] });
   if (j.loaner) { WJ_LOANERS++; j.loaner = false; }
   j.stage = 6;
@@ -3890,8 +4129,8 @@ function adSetMember(gid, id, add){
   var g = adGroup(gid);
   if (!g) return;
   var i = g.members.indexOf(id);
-  if (add && i < 0) { g.members.push(id); adLog(gid === "g-da" ? 4728 : 4732, "Mitglied zu " + g.name + " hinzugefügt: " + id + " (durch Derrik)"); }
-  if (!add && i >= 0) { g.members.splice(i, 1); adLog(4729, "Mitglied aus " + g.name + " entfernt: " + id + " (durch Derrik)"); }
+  if (add && i < 0) { g.members.push(id); adLog(gid === "g-da" ? 4728 : 4732, "Mitglied zu " + g.name + " hinzugefügt: " + id + " (durch " + me() + ")"); }
+  if (!add && i >= 0) { g.members.splice(i, 1); adLog(4729, "Mitglied aus " + g.name + " entfernt: " + id + " (durch " + me() + ")"); }
 }
 function adFix(act, arg){
   if (act === "rmda") { adSetMember("g-da", arg, false); toast(adName(arg) + " aus Domänen-Admins entfernt.", "ok"); }
@@ -3940,7 +4179,7 @@ function adResetPw(uid){
       u.pwdSet = 0; u.mustChange = $("#adPwMust", el).checked; u.failed = 0;
       var unl = $("#adPwUnlock", el);
       if (unl && unl.checked) { u.locked = false; adLog(4767, "Konto entsperrt: " + uid); }
-      adLog(4724, "Kennwort zurückgesetzt: " + uid + " (durch Derrik)");
+      adLog(4724, "Kennwort zurückgesetzt: " + uid + " (durch " + me() + ")");
       close(); renderAD(); toast("Kennwort für " + u.display + " gesetzt.", "ok");
     }
   });
@@ -4585,13 +4824,312 @@ function renderAD(){
   });
 })();
 
+function me(){ return P.user ? P.user.display : "Du"; }
+/* ---------- Betrieb: SLA-Uhr, Tagesabschluss, Kennzahlen, Mitteilungen ---------- */
+// Next free id for a prefix, e.g. nextId("T-", tickets) -> "T-1042". Never reuses a number.
+function nextId(prefix, list){
+  var max = 0;
+  list.forEach(function(x){
+    var id = String(x.id || "");
+    if (id.indexOf(prefix) === 0) { var n = parseInt(id.slice(prefix.length), 10); if (n > max) max = n; }
+  });
+  var width = (list[0] && String(list[0].id).slice(prefix.length).length) || 3;
+  return prefix + String(max + 1).padStart(width, "0");
+}
+var SLA_MIN = { "Kritisch":60, "Hoch":240, "Mittel":480, "Niedrig":1440 };
+function slaFor(prio){ return SLA_MIN[prio] || 480; }
+function fmtSla(m){
+  if (m <= 0) return "überschritten";
+  if (m < 60) return m + " min";
+  if (m < 1440) { var h = Math.floor(m / 60), r = m % 60; return h + " h" + (r ? " " + r + " min" : ""); }
+  var d = Math.round(m / 1440); return d + (d === 1 ? " Tag" : " Tage");
+}
+function fmtDec(n){ return n == null ? "–" : (Math.round(n * 10) / 10).toFixed(1).replace(".", ","); }
+function nowAbs(){ return day * 1440 + minutes; }
+function rnd(seed){ var h = 2166136261; seed = String(seed); for (var i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619); } return ((h >>> 0) % 10000) / 10000; }
+function isOpen(t){ return t.status !== "Gelöst"; }
+function assignedOpen(s){ return tickets.filter(function(t){ return isOpen(t) && t.who === s.name; }); }
+function salaries(){ return staff.reduce(function(a, s){ return a + (s.pay || 0); }, 0) + (ops.ownerPay || 0); }
+function loanRate(){ return ops.loan > 0 ? ops.loanRate : 0; }
+function daysToPayday(){ return 30 - ((day - 1) % 30); }
+function dueText(i){
+  if (i.status === "bezahlt") return "beglichen";
+  var d = i.dueDay - day;
+  return d > 1 ? "fällig in " + d + " Tagen" : d === 1 ? "fällig morgen" : d === 0 ? "heute fällig" : "seit " + (-d) + (d === -1 ? " Tag" : " Tagen") + " überfällig";
+}
+
+var OPS_DEFAULT = { slaMet:47, slaBreached:3, satSum:42, satN:10, contracts:15600, ownerPay:3000, loan:8000, loanRate:310, loanInterest:4.5,
+  monthIncome:0, catSat:{ "Drucken":[39, 10], "Netzwerk":[44, 10], "E-Mail":[46, 10], "Hardware":[41, 10] }, resolveLog:{}, init:false };
+// Fills missing fields (older save games, the start state) and scores tickets that were solved since the last call.
+function opsSync(){
+  if (!ops || typeof ops !== "object" || Array.isArray(ops)) ops = {};
+  Object.keys(OPS_DEFAULT).forEach(function(k){ if (ops[k] === undefined) ops[k] = JSON.parse(JSON.stringify(OPS_DEFAULT[k])); });
+  var basePay = { "Jonas Keller":4200, "Mira Stein":3400, "Ole Brandt":3600 };
+  staff.forEach(function(s){
+    if (s.pay == null) s.pay = basePay[s.name] || 3400;
+    if (s.sickDays == null) s.sickDays = s.sick ? 2 : 0;
+  });
+  invoices.forEach(function(i){
+    if (i.dueDay == null) i.dueDay = i.status === "überfällig" ? day - 3 : i.status === "offen" ? day + 6 : day;
+    i.due = dueText(i);
+  });
+  routines.forEach(function(r){
+    if (r.dueDay == null) { var m = /in (\d+) Tag/.exec(r.due || ""); r.dueDay = m ? day + (+m[1]) : r.due === "Heute" ? day : day + 2; }
+    if (r.done && r.doneDay == null) { r.doneDay = day; if (r.dueDay <= day) r.dueDay = day + (ROUTINE_DAYS[r.every] || 7); }
+    if (!r.done) r.doneDay = null;
+    r.due = routineDue(r);
+  });
+  // "Gerade eben" goes stale; pin it to the game time when it happened.
+  var st = stamp(), fresh = function(v){ return v === "Gerade eben" || v === "Jetzt" ? st : v; };
+  audit.forEach(function(a){ a.t = fresh(a.t); });
+  tickets.forEach(function(t){ (t.thread || []).forEach(function(m){ m.when = fresh(m.when); }); });
+  PC_MAILS.forEach(function(m){ m.time = fresh(m.time); (m.replies || []).forEach(function(r){ r.time = fresh(r.time); }); });
+  postmortems.forEach(function(p){ p.date = fresh(p.date); });
+  var now = nowAbs();
+  tickets.forEach(function(t){
+    if (t.openedAt == null) t.openedAt = now;
+    if (t.breached == null) t.breached = isOpen(t) && t.slaMin <= 0;
+    if (!isOpen(t) && !t.scored) {
+      t.scored = true;
+      if (!ops.init) return;              // solved before the game started: no rating
+      var ok = !t.breached;
+      if (ok) ops.slaMet++; else ops.slaBreached++;
+      var stars = !ok ? 2 : t.slaMin >= slaFor(t.prio) / 2 ? 5 : 4;
+      ops.satSum += stars; ops.satN++;
+      var c = ops.catSat[t.cat] || (ops.catSat[t.cat] = [0, 0]); c[0] += stars; c[1]++;
+      var r = ops.resolveLog[t.prio] || (ops.resolveLog[t.prio] = [0, 0]); r[0] += Math.max(1, now - t.openedAt); r[1]++;
+    }
+  });
+  ops.init = true;
+}
+// A new company starts without history. Loan and contracts depend on the difficulty.
+function opsForNewGame(st, diff){
+  var o = JSON.parse(JSON.stringify(OPS_DEFAULT));
+  o.slaMet = 0; o.slaBreached = 0; o.satSum = 0; o.satN = 0; o.catSat = {}; o.resolveLog = {}; o.init = true;
+  o.loan = { leicht:0, normal:8000, schwer:15000 }[diff] || 0;
+  o.contracts = { leicht:16800, normal:15600, schwer:12000 }[diff] || 15600;
+  st.ops = o;
+  var start = st.day * 1440 + st.minutes;
+  st.tickets.forEach(function(t){ t.openedAt = start - (isOpen(t) ? 10 : 600); t.scored = !isOpen(t); });
+  st.invoices.forEach(function(i){ i.dueDay = i.status === "überfällig" ? st.day - 3 : i.status === "offen" ? st.day + 6 : st.day; });
+  st.routines.forEach(function(r){ var m = /in (\d+) Tag/.exec(r.due || ""); r.dueDay = st.day + (m ? +m[1] : r.due === "Heute" ? 0 : 2); r.doneDay = r.done ? st.day : null; });
+  st.audit.forEach(function(a){ if (/^(Heute|Gestern)/.test(a.t)) a.t = "vor Spielbeginn"; });
+}
+
+var ROUTINE_DAYS = { "täglich":1, "wöchentlich":7, "monatlich":30, "quartalsweise":90 };
+var ROUTINE_SVC = { r1:"print", r2:"files" };
+function routineDue(r){
+  if (r.done) { var n = r.dueDay - day; return "nächste in " + n + (n === 1 ? " Tag" : " Tagen"); }
+  var d = r.dueDay - day;
+  return d > 1 ? "in " + d + " Tagen" : d === 1 ? "morgen" : d === 0 ? "heute" : "seit " + (-d) + (d === -1 ? " Tag" : " Tagen");
+}
+function stamp(){ return "Tag " + day + ", " + String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0"); }
+var SVC_CAT = { "Drucken":"print", "E-Mail":"mail", "Netzwerk":"vpn", "Software":"erp", "Cloud":"files" };
+function satScore(){ return ops.satN ? ops.satSum / ops.satN : null; }
+function slaPct(){ var n = ops.slaMet + ops.slaBreached; return n ? Math.round(ops.slaMet / n * 100) : "–"; }
+function staffLoad(s){ return Math.min(100, Math.round(assignedOpen(s).length * 25 + (100 - s.energy) / 2)); }
+function teamLoad(){
+  var w = staff.filter(function(s){ return !(s.sickDays > 0); });
+  return w.length ? Math.round(w.reduce(function(a, s){ return a + staffLoad(s); }, 0) / w.length) : 0;
+}
+function avgResolve(prio){ var r = ops.resolveLog[prio]; return r && r[1] ? Math.round(r[0] / r[1]) : 0; }
+
+// Every game minute while a save game is open.
+function opsTick(){
+  if (!P.save) return;
+  tickets.forEach(function(t){
+    if (!isOpen(t) || t.slaMin <= 0) return;
+    t.slaMin -= 1;
+    t.sla = fmtSla(t.slaMin);
+    if (t.slaMin === 0) { t.breached = true; toast("SLA verletzt: " + t.id + " " + t.title + ".", "bad"); }
+    else if (t.slaMin === 15) toast("SLA läuft in 15 Minuten ab: " + t.id + " " + t.title + ".", "bad");
+  });
+  if (minutes % 30 === 0) staff.forEach(function(s){
+    if (s.sickDays > 0) return;
+    var n = assignedOpen(s).length;
+    if (n) { s.energy = Math.max(5, s.energy - n); if (n > 2) s.stress = Math.min(100, s.stress + 1); }
+  });
+  renderLive();
+}
+function renderLive(){
+  renderCounters(); renderBell();
+  var r = document.body.getAttribute("data-route");
+  if (r === "uebersicht") { renderHome(); renderOverview(); }
+  if (r === "tickets") renderTickets();
+  if (r === "ticket") { var t = findTicket(); var el = $("#tkSla"); if (t && el) el.textContent = t.sla; }
+}
+
+// Called by "Schicht beenden" after the day has moved on. Returns lines for the shift report.
+function opsNewDay(){
+  var ev = [];
+  staff.forEach(function(s){
+    if (s.sickDays > 0) {
+      s.sickDays--;
+      if (s.sickDays === 0) { s.energy = 70; s.stress = 30; ev.push([s.name + " ist wieder gesund.", "Personal", "t-ok"]); }
+      return;
+    }
+    var n = assignedOpen(s).length;
+    s.energy = Math.max(5, Math.min(100, s.energy + 30 - n * 5));
+    s.stress = Math.max(0, Math.min(100, s.stress + n * 6 - 12));
+    if (s.stress >= 85 && rnd(day + s.name) < 0.5) {
+      s.sickDays = 2; s.energy = 0;
+      ev.push([s.name + " meldet sich krank (2 Tage). Zu viel Stress.", "Personal", "t-bad"]);
+    }
+  });
+  invoices.forEach(function(i){
+    if (i.status === "bezahlt" || i.dueDay > day) return;
+    if (rnd(day + i.id) < (i.status === "überfällig" ? 0.4 : 0.7)) {
+      i.status = "bezahlt"; cash += i.amt; ops.monthIncome += i.amt;
+      ev.push(["Rechnung " + i.id + " bezahlt: " + i.cust, "+" + eur(i.amt), "t-ok"]);
+    } else if (i.status !== "überfällig") {
+      i.status = "überfällig";
+      ev.push(["Rechnung " + i.id + " ist überfällig: " + i.cust, eur(i.amt), "t-bad"]);
+    }
+  });
+  invoices.forEach(function(i){ i.due = dueText(i); });
+  changes.forEach(function(c){
+    if (c.status !== "Genehmigt") return;
+    c.status = "Umgesetzt";
+    audit.unshift({ t:"Tag " + day, who:"Change", what:c.id + " umgesetzt: " + c.title, ref:c.id });
+    ev.push([c.id + " umgesetzt: " + c.title, "Change", "t-info"]);
+  });
+  routines.forEach(function(r){
+    if (r.done && day >= r.dueDay) { r.done = false; r.doneDay = null; ev.push(["Routine wieder fällig: " + r.name, "Routine", "t-warn"]); }
+    r.due = routineDue(r);
+  });
+  maint.forEach(function(m){
+    if (m.status !== "geplant") return;
+    var pending = changes.some(function(c){ return c.title === "Wartung: " + m.svc && c.status === "Zur Prüfung"; });
+    if (pending) return;
+    m.status = "erledigt";
+    services.forEach(function(s){ if (s.name === m.svc) s.avail = Math.min(99.9, Math.round((s.avail + 1.5) * 10) / 10); });
+    ev.push(["Wartung erledigt: " + m.svc, "Wartung", "t-ok"]);
+  });
+  services.forEach(function(s){
+    var hits = tickets.filter(function(t){ return isOpen(t) && SVC_CAT[t.cat] === s.id; }).length;
+    var late = routines.some(function(r){ return ROUTINE_SVC[r.id] === s.id && !r.done && r.dueDay < day; });
+    if (s.id === "files") s.cap = Math.min(100, s.cap + 1);
+    var before = s.avail;
+    s.avail = Math.round(Math.max(80, Math.min(99.9, s.avail + (hits ? -0.6 * hits : 0.4) - (late ? 0.5 : 0) - (s.cap >= 98 ? 1 : 0))) * 10) / 10;
+    if (before >= 95 && s.avail < 95) ev.push([s.name + " fällt unter 95 % Verfügbarkeit", "Dienst", "t-bad"]);
+    if (before < 95 && s.avail >= 95) ev.push([s.name + " ist wieder über 95 % verfügbar", "Dienst", "t-ok"]);
+    if (s.cap === 95) ev.push([s.name + " ist zu 95 % ausgelastet. Kapazität erhöhen.", "Dienst", "t-warn"]);
+  });
+  if ((day - 1) % 30 === 0) {
+    var sal = salaries(), interest = Math.round(ops.loan * ops.loanInterest / 100 / 12), rate = ops.loan > 0 ? Math.min(ops.loanRate, ops.loan + interest) : 0;
+    cash += ops.contracts - sal - rate;
+    ops.loan = Math.max(0, ops.loan + interest - rate);
+    ev.push(["Monatsabschluss: Support-Verträge", "+" + eur(ops.contracts), "t-ok"]);
+    ev.push(["Monatsabschluss: Gehälter", "−" + eur(sal), "t-warn"]);
+    if (rate) ev.push(["Monatsabschluss: Kreditrate", "−" + eur(rate), "t-warn"]);
+    ops.monthIncome = 0;
+  }
+  if (cash < 0) ev.push(["Die Kasse ist im Minus. Schreib Rechnungen oder senke die Kosten.", "Kasse", "t-bad"]);
+  return ev;
+}
+
+/* Anzeigen */
+// Badge with number, colour (warn/hot) and a readable label for screen readers.
+function setCnt(sel, n, kind, label){
+  var el = $(sel); if (!el) return;
+  el.textContent = n > 99 ? "99+" : n; el.hidden = !n;
+  el.classList.toggle("warn", kind === "warn"); el.classList.toggle("hot", kind === "hot");
+  if (label) { el.setAttribute("aria-label", label); el.title = label; }
+}
+function renderCounters(){
+  var open = tickets.filter(isOpen);
+  var hot = open.filter(function(t){ return t.breached || t.prio === "Kritisch" || t.status === "Major Incident"; }).length;
+  setCnt("#navTickets", open.length, hot ? "hot" : "", open.length + " offene Tickets" + (hot ? ", davon " + hot + " dringend" : ""));
+  var cab = changes.filter(function(c){ return c.status === "Zur Prüfung"; }).length;
+  setCnt("#navChanges", cab, "warn", cab + " Changes warten auf das CAB");
+}
+function bellItems(){
+  var it = [];
+  tickets.filter(isOpen).forEach(function(t){
+    if (t.breached) it.push({ open:t.id, t:"SLA verletzt: " + t.title, s:t.id + " · " + t.cust, tag:"SLA", cls:"t-bad", w:0 });
+    else if (t.status === "Major Incident") it.push({ open:t.id, t:"Major Incident: " + t.title, s:t.id + " · SLA läuft in " + t.sla, tag:"Kritisch", cls:"t-bad", w:1 });
+    else if (t.slaMin <= 60) it.push({ open:t.id, t:t.title, s:t.id + " · SLA läuft in " + t.sla, tag:t.prio, cls:"t-warn", w:2 });
+  });
+  changes.filter(function(c){ return c.status === "Zur Prüfung"; }).forEach(function(c){
+    it.push({ go:"changes", t:c.id + " wartet auf das CAB", s:c.type + "-Change · Risiko " + c.risk, tag:"CAB", cls:"t-warn", w:3 });
+  });
+  staff.filter(function(s){ return s.sickDays > 0; }).forEach(function(s){
+    it.push({ go:"personal", t:s.name + " ist krank", s:"noch " + s.sickDays + (s.sickDays === 1 ? " Tag" : " Tage") + " · Vertretung planen", tag:"Personal", cls:"t-mut", w:4 });
+  });
+  staff.filter(function(s){ return !(s.sickDays > 0) && s.stress >= 75; }).forEach(function(s){
+    it.push({ go:"personal", t:s.name + " ist stark gestresst", s:"Stress " + s.stress + " % · Tickets umverteilen", tag:"Personal", cls:"t-warn", w:4 });
+  });
+  invoices.filter(function(i){ return i.status === "überfällig"; }).forEach(function(i){
+    it.push({ go:"finanzen", t:"Rechnung " + i.id + " überfällig", s:i.cust + " · " + eur(i.amt), tag:"Finanzen", cls:"t-bad", w:5 });
+  });
+  if (cash < 0) it.push({ go:"finanzen", t:"Die Kasse ist im Minus", s:eur(cash), tag:"Kasse", cls:"t-bad", w:0 });
+  if (daysToPayday() <= 3) it.push({ go:"finanzen", t:"Gehälter in " + daysToPayday() + (daysToPayday() === 1 ? " Tag" : " Tagen"), s:eur(salaries() + loanRate()) + " fällig", tag:"Finanzen", cls:"t-info", w:6 });
+  return it.sort(function(a, b){ return a.w - b.w; });
+}
+function renderBell(){
+  var list = $("#bellList");
+  if (!list) return;
+  var it = bellItems();
+  setCnt("#bellCount", it.length);
+  list.innerHTML = it.length ? it.slice(0, 8).map(function(x){
+    return '<button class="item" type="button" ' + (x.open ? 'data-open="' + esc(x.open) + '"' : 'data-go="' + x.go + '"') + '><span>' + esc(x.t) + '<br><span class="sub">' + esc(x.s) + '</span></span><span class="tag ' + x.cls + '">' + esc(x.tag) + '</span></button>';
+  }).join("") + (it.length > 8 ? '<div class="hint" style="padding:6px 12px">und ' + (it.length - 8) + ' weitere</div>' : '')
+    : '<div class="hint" style="padding:4px 12px 10px">Keine Mitteilungen. Alles im Griff.</div>';
+}
+function renderOverviewKpis(open){
+  var oc = $("#ovCash"); if (!oc) return;
+  oc.textContent = eur(cash); oc.style.color = cash < 0 ? "var(--bad)" : "";
+  var burn = salaries() + loanRate() - ops.contracts;
+  $("#ovCashS").textContent = cash < 0 ? "im Minus" : burn <= 0 ? "Verträge decken die laufenden Kosten" : cash / burn < 1 ? "Reichweite unter 1 Monat" : "Reichweite ca. " + Math.floor(cash / burn) + " Monate";
+  var mj = open.filter(function(t){ return t.status === "Major Incident"; }).length;
+  $("#ovMajor").textContent = mj ? mj + " Major Incident" + (mj === 1 ? "" : "s") : "kein Major Incident";
+  var pct = slaPct(), n = ops.slaMet + ops.slaBreached, sl = $("#ovSla");
+  sl.textContent = pct === "–" ? "–" : pct + " %";
+  sl.style.color = pct === "–" ? "" : pct >= 90 ? "var(--ok)" : pct >= 75 ? "var(--warn)" : "var(--bad)";
+  $("#ovSlaS").textContent = n ? "aus " + n + " gelösten Tickets" : "noch keine gelösten Tickets";
+  $("#ovSat").textContent = fmtDec(satScore());
+  // Heute
+  var today = [];
+  tickets.filter(function(t){ return isOpen(t) && t.breached; }).slice(0, 2).forEach(function(t){ today.push([t.id + " ist über dem SLA", t.title, "SLA", "t-bad"]); });
+  changes.forEach(function(c){
+    if (c.status === "Zur Prüfung") today.push([c.id + " zur CAB-Prüfung", c.title, "Change", "t-warn"]);
+    if (c.status === "Genehmigt") today.push([c.id + " umsetzen", c.title + " · bei Schichtende", "Change", "t-acc"]);
+  });
+  maint.forEach(function(m){ if (m.status !== "erledigt") today.push(["Wartung " + m.svc, m.when, "Wartung", "t-info"]); });
+  invoices.forEach(function(i){ if (i.status !== "bezahlt" && i.dueDay <= day) today.push(["Rechnung " + i.id + " " + (i.dueDay < day ? "überfällig" : "fällig"), i.cust + " · " + eur(i.amt), "Finanzen", i.dueDay < day ? "t-bad" : "t-warn"]); });
+  today.push(["Gehaltszahlung", (daysToPayday() === 30 ? "heute fällig" : "in " + daysToPayday() + " Tagen") + " · Monatsabschluss", eur(salaries() + loanRate()), "t-mut"]);
+  $("#ovTodayN").textContent = today.length + (today.length === 1 ? " Punkt" : " Punkte");
+  $("#ovToday").innerHTML = today.slice(0, 6).map(function(x){
+    return '<div class="li"><div class="main-t"><div style="font-weight:650">' + esc(x[0]) + '</div><div class="sub muted" style="font-size:13px">' + esc(x[1]) + '</div></div><span class="tag ' + x[3] + '">' + esc(x[2]) + '</span></div>';
+  }).join("");
+  // Team
+  $("#ovTeamN").textContent = staff.length + (staff.length === 1 ? " Mitarbeitende/r" : " Mitarbeitende");
+  $("#ovTeam").innerHTML = staff.map(function(s){
+    if (s.sickDays > 0) return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + esc(s.name) + '</span><span class="num">krank</span></div><div class="bar bad" style="margin-top:6px"><i style="width:100%"></i></div></div>';
+    var l = staffLoad(s), n = assignedOpen(s).length;
+    return '<div><div style="display:flex;justify-content:space-between;font-size:14px;font-weight:600"><span>' + esc(s.name) + ' <span class="sub muted" style="font-weight:500">· ' + n + ' Ticket' + (n === 1 ? '' : 's') + '</span></span><span class="num">' + l + ' %</span></div><div class="bar ' + (l >= 85 ? "bad" : l >= 65 ? "warn" : "") + '" style="margin-top:6px"><i style="width:' + l + '%"></i></div></div>';
+  }).join("");
+}
+function renderFinance(){
+  var el = $("#finIn"); if (!el) return;
+  el.textContent = eur(ops.contracts + ops.monthIncome);
+  $("#finInS").textContent = "Verträge " + eur(ops.contracts) + " · Tickets und Rechnungen " + eur(ops.monthIncome);
+  $("#finCost").textContent = eur(salaries() + loanRate());
+  $("#finCostS").textContent = "Gehälter " + eur(salaries()) + " · fällig in " + daysToPayday() + (daysToPayday() === 1 ? " Tag" : " Tagen");
+  $("#finLoan").textContent = ops.loan > 0 ? "−" + eur(ops.loan) : "0 €";
+  $("#finLoan").style.color = ops.loan > 0 ? "var(--bad)" : "var(--ok)";
+  $("#finLoanS").textContent = ops.loan > 0 ? "Zins " + String(ops.loanInterest).replace(".", ",") + " % · Rate " + eur(ops.loanRate) + " im Monat" : "kein Kredit";
+}
+
 /* ---------- Gesamt-Render ---------- */
 function renderAll(){
+  opsSync();
+  renderCatalog(); renderCMDB(); renderProblems(); renderKbList();
   renderHome(); renderTickets(); renderChanges(); renderUsers(); renderInvoices();
   renderSaves(); renderStaff(); renderPrices(); renderServerroom();
   renderServices(); renderAccess(); renderReports(); renderRoutines(); renderAutomations();
   renderMilestones(); renderLastShift(); renderCash(); renderOverview(); renderWorkshop(); updateConn(); renderPcIcons(); renderPostmortems(); renderWorkshopJobs(); renderAD();
-  $("#bellCount").textContent = tickets.filter(function(t){ return t.prio === "Kritisch" && t.status !== "Gelöst"; }).length + 2;
+  renderCounters(); renderBell(); renderFinance();
 }
 
 /* ---------- Plattform: Server, Konten, Speicherstände, Admin ---------- */
@@ -4632,7 +5170,7 @@ function captureState(){
     shiftLog:shiftLog, cash:cash, staff:staff, candidates:candidates, invoices:invoices, closedInShift:closedInShift, shiftIndex:shiftIndex,
     racks:racks, devices:devices, cables:cables, WS:WS, pcInv:pcInv, PC_CHAT:PC_CHAT, PC_MAILS:PC_MAILS, CAL_EVENTS:CAL_EVENTS,
     secScore:secScore, secDone:secDone, postmortems:postmortems, WJ_PARTS:WJ_PARTS, WJ_OWNED:WJ_OWNED, WJ_LOANERS:WJ_LOANERS,
-    WJ_ORDERS:WJ_ORDERS, WJ_JOBS:WJ_JOBS, AD:AD, prices:P.prices || {}, notes:pcState.notes || ""
+    WJ_ORDERS:WJ_ORDERS, WJ_JOBS:WJ_JOBS, AD:AD, ops:ops, kb:kb, CI:CI, catalog:catalog, problems:problems, prices:P.prices || {}, notes:pcState.notes || ""
   }));
 }
 function applyState(src){
@@ -4644,7 +5182,10 @@ function applyState(src){
   shiftLog = c.shiftLog; cash = c.cash; staff = c.staff; candidates = c.candidates; invoices = c.invoices; closedInShift = c.closedInShift; shiftIndex = c.shiftIndex;
   racks = c.racks; devices = c.devices; cables = c.cables; WS = c.WS; pcInv = c.pcInv; PC_CHAT = c.PC_CHAT; PC_MAILS = c.PC_MAILS; CAL_EVENTS = c.CAL_EVENTS;
   secScore = c.secScore; secDone = c.secDone; postmortems = c.postmortems; WJ_PARTS = c.WJ_PARTS; WJ_OWNED = c.WJ_OWNED; WJ_LOANERS = c.WJ_LOANERS;
-  WJ_ORDERS = c.WJ_ORDERS; WJ_JOBS = c.WJ_JOBS; AD = c.AD; P.prices = c.prices || {}; pcState.notes = c.notes || "";
+  WJ_ORDERS = c.WJ_ORDERS; WJ_JOBS = c.WJ_JOBS; AD = c.AD; ops = c.ops || {};
+  var dflt = function(k){ return JSON.parse(JSON.stringify(c[k] || (P.defaultState && P.defaultState[k]) || null)); };
+  kb = dflt("kb") || kb; CI = dflt("CI") || CI; catalog = dflt("catalog") || catalog; problems = dflt("problems") || problems;
+  itsmSel = { ci:Object.keys(CI)[0], kb:Object.keys(kb)[0], prob:problems[0] ? problems[0].id : null }; opsSync(); P.prices = c.prices || {}; pcState.notes = c.notes || "";
   // Ansichtszustände zurücksetzen
   currentTicket = tickets[0] ? tickets[0].id : null;
   adState.sel = null; adState.node = "ma-it"; adState.tab = "aduc"; adState.search = "";
@@ -4962,6 +5503,7 @@ $("#importFile").addEventListener("change", function(e){
 function createSave(name, mode, diff, focus){
   var st = JSON.parse(JSON.stringify(P.defaultState));
   st.company = name; st.day = 1; st.minutes = 8 * 60; st.cash = START_CASH[diff] || START_CASH.normal;
+  opsForNewGame(st, diff);
   return api("POST", "/saves", { name:name, mode:mode, diff:diff, focus:focus, state:st }).then(function(d){ return loadSave(d.save.id); });
 }
 function createSaveFromWizard(){
@@ -5144,9 +5686,12 @@ function editUserModal(u){
 // Read-only view for the end-to-end tests and for debugging in the browser console.
 window.craftit = {
   state: function(){ return captureState(); },
+  // Runs the game clock n minutes forward (tests, debugging). Same effect as waiting.
+  advance: function(n){ for (var i = 0; i < n; i++) tickClock(); return captureState().minutes; },
   info: function(){ return { saving:P.saving, dirty:!!P.save && P.lastSaved !== JSON.stringify(captureState()), save:P.save ? { id:P.save.id, name:P.save.name, rev:P.rev } : null, user:P.user ? P.user.username : null }; }
 };
 function boot(){
+  opsSync();
   P.defaultState = captureState();
   paused = true;
   var t = _localGet("theme", null);
@@ -5223,7 +5768,7 @@ function refreshSupportBadge(){
   if (!P.user) return;
   api("GET", "/support/summary").then(function(d){
     var b = $("#navSupportCnt");
-    if (b) { b.hidden = !d.unread; b.textContent = d.unread; }
+    if (b) { b.hidden = !d.unread; b.textContent = d.unread; b.classList.add("hot"); b.setAttribute("aria-label", d.unread + " ungelesene Antworten"); b.title = b.getAttribute("aria-label"); }
   }).catch(function(){});
 }
 setInterval(refreshSupportBadge, 60000);

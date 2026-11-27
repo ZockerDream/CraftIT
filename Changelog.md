@@ -4,6 +4,30 @@ All notable changes to CraftIT are recorded here. Newest first.
 
 ## [Unreleased]
 
+### Added
+
+- Operations simulation: the SLA clock of every open ticket runs with the game clock, with a warning 15 minutes before and a notice on breach. SLA times depend on priority (critical 1 h, high 4 h, medium 8 h, low 1 day).
+- Shift end now moves the company on: staff recover or get stressed and can call in sick, sick staff return, invoices get paid or become overdue, approved changes are carried out, planned maintenance is done, routines come due again, and service availability reacts to open tickets and overdue routines.
+- Month end every 30 days: support contracts are paid in, salaries and the loan rate are paid out; the loan shrinks.
+- Service catalogue: create services.
+- CMDB: create configuration items; the status follows open tickets of the customer; "Auswirkung prüfen" shows dependent items and affected customers.
+- Problem management: record problems, run a 5-why analysis, document a workaround, request a change, and solve the problem. Solved problems stop new tickets of that kind.
+- Knowledge base: write articles; "Als Wissensartikel vorschlagen" in the resolve dialog creates a draft that can be reviewed and released.
+- Tests: new spec `05-operations` (11 tests) for counters, notifications, SLA clock, overview, finances, staff, routines, month end, ITSM.
+
+### Fixed
+
+- The overview showed a fixed cash value (18.420 €), fixed SLA rate, satisfaction, "Heute" list and team load. All are now calculated from the save game.
+- Notifications ("Mitteilungen") were fixed mockup entries with a made-up count. They now list SLA breaches, major incidents, tickets close to their SLA, changes waiting for the CAB, sick or stressed staff, overdue invoices, negative cash, and the next payday.
+- Menu counters: the changes counter was fixed at 2. Counters are now badges with spacing (on phones the number stuck to the word), red when a ticket is critical, a major incident or over its SLA, yellow for changes waiting for the CAB, hidden at 0, and readable by screen readers.
+- Finances showed fixed monthly income, costs and loan.
+- Reports showed fixed satisfaction, SLA rate, workload and resolution times.
+- Creating a ticket raised a script error ("n is not defined").
+- Ticket, change, invoice and cable numbers could repeat after a few shifts.
+- "Bewerber ansehen" did nothing.
+- Your own actions were logged as "Derrik" (audit, Active Directory log, mail, chat); they now show your name.
+- "Gerade eben" in logs and conversations stayed forever; it is now stored as the game time.
+
 ## [1.0.0] - 2026-11-26
 
 Base version: everything from the mockup works as a real application with a server.

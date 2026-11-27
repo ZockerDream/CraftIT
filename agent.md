@@ -11,7 +11,7 @@ Working state for coding agents. Keep it short and current. **If a session ends 
 
 ## Work in progress
 
-Nothing in progress. Next candidates (ask the owner before starting):
+Nothing in progress. Since 1.0.0 (unreleased, on `develop`): operations simulation, live overview, notifications and finances, ITSM pages with real data. Candidate for release 1.1.0. Next candidates (ask the owner before starting):
 - Move game rules from the browser to the server (Technical.md, decision of 2026-11-26).
 - English UI texts.
 - A fresh scenario per new game instead of the same Nordlicht world.
@@ -34,7 +34,8 @@ Nothing in progress. Next candidates (ask the owner before starting):
 
 - Read [README.md](README.md), [Concept.md](Concept.md), and [Technical.md](Technical.md) before changing code.
 - Keep changes small. Run `npm test` before reporting success; all tests must pass.
-- When adding game state, extend `captureState()` and `applyState()` and add a check to the reload test in `tests/02-game.spec.js`.
+- When adding game state, extend `captureState()` and `applyState()` and add a check to the reload test in `tests/02-game.spec.js`. Give older save games a default in `opsSync()` or in `applyState()`.
+- Never put fixed numbers into the HTML for things the game changes; render them from the state.
 - Add a [Changelog.md](Changelog.md) entry for every user-visible change. The in-game changelog page reads this file.
 - Update this file when the state or the open points change.
 
